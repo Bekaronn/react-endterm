@@ -1,0 +1,141 @@
+.items-page {
+    padding: 2rem 1.5rem;
+    max-width: 1300px;
+    margin: 0 auto;
+    color: #111827;
+}
+
+.page-title {
+    font-size: 2rem;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 1.5rem;
+    color: #1e3a8a;
+    letter-spacing: -0.02em;
+}
+
+.search-row {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.search-input {
+    width: 100%;
+    max-width: 500px;
+    padding: 0.6rem 1rem;
+    border-radius: 12px;
+    border: 1px solid #d1d5db;
+    background: #f9fafb;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+.filter-row {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.filter-input {
+    padding: 0.5rem 1rem;
+    border-radius: 10px;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    font-size: 0.95rem;
+    transition: border 0.2s ease;
+}
+
+.filter-input:focus {
+    border-color: #2563eb;
+    outline: none;
+}
+
+.items-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.no-results {
+    text-align: center;
+    color: #6b7280;
+    font-style: italic;
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.pagination button {
+    background: #2563eb;
+    color: white;
+    border: none;
+    padding: 0.5rem 1.2rem;
+    border-radius: 10px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.pagination button:hover:not(:disabled) {
+    background: #1d4ed8;
+    transform: translateY(-1px);
+}
+
+.pagination button:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+}
+
+.empty-search {
+    text-align: center;
+    color: #4b5563;
+    margin-top: 4rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.8rem;
+    animation: fadeIn 0.4s ease;
+}
+
+.empty-search img {
+    width: 90px;
+    height: 90px;
+    opacity: 0.8;
+}
+
+.empty-search h3 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #1e3a8a;
+}
+
+.empty-search p {
+    font-size: 0.95rem;
+    color: #6b7280;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
