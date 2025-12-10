@@ -341,24 +341,26 @@ export default function Items() {
   // Дебаунс поиска + запись в URL
   useEffect(() => {
     dispatch(setQuery(debouncedSearch));
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (debouncedSearch) {
-        next.set('q', debouncedSearch);
-      } else {
-        next.delete('q');
-      }
-      // Сброс страницы при новом поиске
-      if (prev.get('q') !== debouncedSearch) {
+    const currentQuery = searchParams.get('q') ?? '';
+
+    // Не трогаем пагинацию, если запрос уже совпадает с URL (клик по страницам)
+    if (currentQuery === debouncedSearch) return;
+
+    setCurrentPage(1);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (debouncedSearch) {
+          next.set('q', debouncedSearch);
+        } else {
+          next.delete('q');
+        }
         next.set('page', '1');
-      }
-      return next;
-    }, { replace: true });
-    
-    if (debouncedSearch !== searchParams.get('q')) {
-      setCurrentPage(1);
-    }
-  }, [debouncedSearch, dispatch, setSearchParams]);
+        return next;
+      },
+      { replace: true },
+    );
+  }, [debouncedSearch, dispatch, searchParams, setSearchParams]);
 
   // Загрузка избранного
   useEffect(() => {
@@ -796,7 +798,8 @@ export default function Items() {
             )}
           </div>
         </div>
-      </div>   
+      </div>
+   
     </main>
   );
 }
