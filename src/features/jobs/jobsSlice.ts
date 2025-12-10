@@ -34,6 +34,7 @@ export const fetchJobsThunk = createAsyncThunk<
     companyFilter: string;
     remoteFilter: 'All' | 'true' | 'false';
     tagFilter: string;
+    sortBy: 'newest' | 'oldest' | 'company' | 'title';
   },
   { rejectValue: string }
 >('jobs/fetchJobs', async (params, { rejectWithValue }) => {

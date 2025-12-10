@@ -257,6 +257,13 @@ const TAG_OPTIONS = [
   'vocational',
 ];
 
+const SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'oldest', label: 'Oldest first' },
+  { value: 'company', label: 'Company (A-Z)' },
+  { value: 'title', label: 'Title (A-Z)' },
+];
+
 export default function Items() {
   const dispatch = useDispatch<AppDispatch>();
 
@@ -269,6 +276,7 @@ export default function Items() {
   const [selectedTag, setSelectedTag] = useState('All');
   const [companyFilter, setCompanyFilter] = useState('');
   const [selectedRemote, setSelectedRemote] = useState<'All' | 'true' | 'false'>('All');
+  const [selectedSort, setSelectedSort] = useState<'newest' | 'oldest' | 'company' | 'title'>('newest');
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 10;
 
@@ -282,9 +290,10 @@ export default function Items() {
         companyFilter,
         remoteFilter: selectedRemote,
         tagFilter: selectedTag,
+        sortBy: selectedSort,
       }),
     );
-  }, [dispatch, q, currentPage, selectedTag, selectedType, companyFilter, selectedRemote]);
+  }, [dispatch, q, currentPage, selectedTag, selectedType, companyFilter, selectedRemote, selectedSort]);
 
   function onChange(e: ChangeEvent<HTMLInputElement>) {
     const v = e.target.value;
@@ -296,7 +305,7 @@ export default function Items() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedTag, selectedType, q, companyFilter, selectedRemote]);
+  }, [selectedTag, selectedType, q, companyFilter, selectedRemote, selectedSort]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -336,7 +345,7 @@ export default function Items() {
           <p className="text-muted-foreground">Discover opportunities tailored to your skills</p>
         </div>
 
-        <div className="mb-8">
+        <div className="mb-4">
           <div className="relative">
             <Search className="absolute left-4 top-3 w-5 h-5 text-muted-foreground" />
             <input
@@ -349,7 +358,7 @@ export default function Items() {
           </div>
         </div>
 
-        <div className="mb-8 flex justify-between items-center">
+        <div className="mb-4 flex items-center gap-3">
           <button
             onClick={() => setShowFilters((prev) => !prev)}
             className="flex items-center gap-2 text-primary hover:text-primary/80 transition md:hidden"
@@ -357,6 +366,20 @@ export default function Items() {
             <Filter className="w-5 h-5" />
             Filters
           </button>
+          <div className="flex items-center gap-2 text-sm ml-auto">
+            <span className="text-muted-foreground">Sort by:</span>
+            <select
+              value={selectedSort}
+              onChange={(e) => setSelectedSort(e.target.value as typeof selectedSort)}
+              className="px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              {SORT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="flex gap-8">

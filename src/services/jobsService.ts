@@ -40,12 +40,30 @@ type FetchJobsParams = {
   companyFilter?: string | null;
   remoteFilter?: 'All' | 'true' | 'false';
   tagFilter?: string | null;
+  sortBy?: SortOption;
 };
 
 export type PaginatedJobs = {
   jobs: Job[];
   total: number;
 };
+
+type SortOption = 'newest' | 'oldest' | 'company' | 'title';
+
+function getTimestampValue(dateLike: unknown) {
+  if (!dateLike) return 0;
+  if (typeof dateLike === 'number') return dateLike;
+  if (typeof dateLike === 'string') {
+    const t = Date.parse(dateLike);
+    return Number.isFinite(t) ? t : 0;
+  }
+  if (typeof dateLike === 'object' && 'seconds' in (dateLike as Record<string, unknown>)) {
+    const seconds = (dateLike as { seconds?: number }).seconds ?? 0;
+    const nanos = (dateLike as { nanoseconds?: number }).nanoseconds ?? 0;
+    return seconds * 1000 + Math.floor(nanos / 1_000_000);
+  }
+  return 0;
+}
 
 export async function fetchJobs({
   search = '',
@@ -55,6 +73,7 @@ export async function fetchJobs({
   companyFilter = '',
   remoteFilter = 'All',
   tagFilter = 'All',
+  sortBy = 'newest',
 }: FetchJobsParams) {
   const col = jobsCollection(db);
   const constraints: QueryConstraint[] = [orderBy('created_at', 'desc')];
@@ -101,8 +120,24 @@ export async function fetchJobs({
     return haystack.includes(searchLower);
   });
 
+  const sorted = [...filteredBySearch].sort((a, b) => {
+    const aDate = getTimestampValue(a.created_at ?? a.updated_at);
+    const bDate = getTimestampValue(b.created_at ?? b.updated_at);
+    switch (sortBy) {
+      case 'oldest':
+        return aDate - bDate;
+      case 'company':
+        return a.company_name.localeCompare(b.company_name);
+      case 'title':
+        return a.title.localeCompare(b.title);
+      case 'newest':
+      default:
+        return bDate - aDate;
+    }
+  });
+
   const pageStart = Math.max(0, (safePage - 1) * safePageSize);
-  const jobs = filteredBySearch.slice(pageStart, pageStart + safePageSize);
+  const jobs = sorted.slice(pageStart, pageStart + safePageSize);
 
   // Count matches for pagination (exact for filters; approximate for search).
   let total = filteredBySearch.length;

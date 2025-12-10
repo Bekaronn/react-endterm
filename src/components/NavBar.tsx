@@ -31,9 +31,6 @@ export default function Navbar() {
             <NavLink to="/" className="text-foreground hover:text-primary transition">
               Home
             </NavLink>
-            <NavLink to="/about" className="text-foreground hover:text-primary transition">
-              About
-            </NavLink>
             <NavLink to="/jobs" className="text-foreground hover:text-primary transition">
               Jobs
             </NavLink>
@@ -97,9 +94,6 @@ export default function Navbar() {
           <div className="md:hidden pb-4 space-y-2">
             <NavLink to="/" className="block py-2 text-foreground hover:text-primary">
               Home
-            </NavLink>
-            <NavLink to="/about" className="block py-2 text-foreground hover:text-primary">
-              About
             </NavLink>
             <NavLink to="/jobs" className="block py-2 text-foreground hover:text-primary">
               Jobs

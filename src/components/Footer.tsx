@@ -8,7 +8,7 @@ export default function Footer() {
           Career Atlas
         </NavLink>
         <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-          <NavLink to="/about" className="hover:text-primary">About</NavLink>
+          <NavLink to="/" className="hover:text-primary">About</NavLink>
           <NavLink to="/jobs" className="hover:text-primary">Jobs</NavLink>
           <NavLink to="/profile" className="hover:text-primary">Profile</NavLink>
           <NavLink to="/login" className="hover:text-primary">Login</NavLink>
