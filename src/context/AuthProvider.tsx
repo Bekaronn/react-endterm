@@ -7,6 +7,9 @@ import {
 } from 'react';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { auth } from '../firebase';
+import { useDispatch } from 'react-redux';
+import { mergeFavoritesThunk, loadFavoritesThunk } from '../features/favorites/favoritesSlice';
+import type { AppDispatch } from '../store';
 
 type AuthContextValue = {
   user: User | null;
@@ -19,15 +22,29 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       setLoading(false);
+      
+      // Мердж favorites при логине
+      if (currentUser) {
+        const result = await dispatch(mergeFavoritesThunk(currentUser.uid));
+        if (result.type === 'favorites/merge/fulfilled' && result.payload.merged) {
+          // Сообщение будет показано через Redux state
+        }
+        // Загружаем favorites после мерджа
+        dispatch(loadFavoritesThunk({ uid: currentUser.uid }));
+      } else {
+        // Для гостей загружаем из localStorage
+        dispatch(loadFavoritesThunk({ uid: null }));
+      }
     });
 
     return unsubscribe;
-  }, []);
+  }, [dispatch]);
 
   const logout = () => signOut(auth);
 

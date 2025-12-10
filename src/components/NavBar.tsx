@@ -1,8 +1,12 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
+<<<<<<< HEAD
 import { useDispatch, useSelector } from "react-redux";
 import { Menu, X, Compass, Moon, Sun } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+=======
+import { Menu, X, Compass, Moon, Sun, Heart } from "lucide-react";
+>>>>>>> 2600699ea5d2dbeb7ebd960562d41896612711d0
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -11,13 +15,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useTheme } from "@/components/theme-provider"
+<<<<<<< HEAD
 import { useAuth } from "../context/AuthProvider";
 import { setProfile } from "../features/profile/profileSlice";
 import type { RootState, AppDispatch } from "../store";
+=======
+import { useAuth } from "../context/AuthProvider"
+>>>>>>> 2600699ea5d2dbeb7ebd960562d41896612711d0
 
 export default function Navbar() {
   const { setTheme } = useTheme()
+  const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+<<<<<<< HEAD
   const { user, loading, logout } = useAuth();
   const dispatch = useDispatch<AppDispatch>();
   const profile = useSelector((state: RootState) => state.profile.data);
@@ -25,6 +35,8 @@ export default function Navbar() {
   const displayName = profile?.displayName ?? user?.displayName ?? user?.email ?? "User";
   const email = profile?.email ?? user?.email ?? "";
   const photoURL = profile?.photoURL ?? user?.photoURL ?? undefined;
+=======
+>>>>>>> 2600699ea5d2dbeb7ebd960562d41896612711d0
 
   return (
     <nav className="bg-background border-b border-border sticky top-0 z-50">
@@ -42,6 +54,7 @@ export default function Navbar() {
             <NavLink to="/" className="text-foreground hover:text-primary transition">
               Home
             </NavLink>
+<<<<<<< HEAD
           </div>
 
           {/* Right Controls */}
@@ -52,6 +65,26 @@ export default function Navbar() {
                   <Sun className="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
                   <Moon className="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
                   <span className="sr-only">Toggle theme</span>
+=======
+            <NavLink to="/jobs" className="text-foreground hover:text-primary transition">
+              Jobs
+            </NavLink>
+            <NavLink to="/bookmarks" className="text-foreground hover:text-primary transition flex items-center gap-1">
+              <Heart className="w-4 h-4" />
+              Bookmarks
+            </NavLink>
+          </div>
+
+          {/* Auth Buttons */}
+          <div className="hidden md:flex items-center gap-4">
+            {user ? (
+              <>
+                <NavLink to="/profile">
+                  <Button variant="outline">Profile</Button>
+                </NavLink>
+                <Button variant="outline" onClick={() => void logout()}>
+                  Logout
+>>>>>>> 2600699ea5d2dbeb7ebd960562d41896612711d0
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -120,6 +153,7 @@ export default function Navbar() {
             <NavLink to="/" className="block py-2 text-foreground hover:text-primary">
               Home
             </NavLink>
+<<<<<<< HEAD
 
             <div className="flex items-center gap-2 px-2 pt-1">
               <span className="text-sm text-muted-foreground">Theme</span>
@@ -129,10 +163,20 @@ export default function Navbar() {
                 <Button size="sm" variant="outline" className="px-2" onClick={() => setTheme("system")} disabled={loading}>System</Button>
               </div>
             </div>
+=======
+            <NavLink to="/jobs" className="block py-2 text-foreground hover:text-primary">
+              Jobs
+            </NavLink>
+            <NavLink to="/bookmarks" className="block py-2 text-foreground hover:text-primary flex items-center gap-2">
+              <Heart className="w-4 h-4" />
+              Bookmarks
+            </NavLink>
+>>>>>>> 2600699ea5d2dbeb7ebd960562d41896612711d0
 
             <div className="pt-4 space-y-2">
               {user ? (
                 <>
+<<<<<<< HEAD
                   <NavLink to="/profile" className="flex items-center gap-3 px-2">
                     <Avatar className="h-9 w-9">
                       <AvatarImage src={photoURL} alt={displayName} />
@@ -142,15 +186,25 @@ export default function Navbar() {
                       <p className="text-sm font-semibold text-foreground">{displayName}</p>
                       <p className="text-xs text-muted-foreground">{email || 'Profile'}</p>
                     </div>
+=======
+                  <NavLink to="/profile" className="block">
+                    <Button variant="outline" className="w-full bg-transparent">
+                      Profile
+                    </Button>
+>>>>>>> 2600699ea5d2dbeb7ebd960562d41896612711d0
                   </NavLink>
                   <Button
                     variant="outline"
                     className="w-full bg-transparent"
+<<<<<<< HEAD
                     onClick={() => {
                       void logout();
                       dispatch(setProfile(null));
                     }}
                     disabled={loading}
+=======
+                    onClick={() => void logout()}
+>>>>>>> 2600699ea5d2dbeb7ebd960562d41896612711d0
                   >
                     Logout
                   </Button>

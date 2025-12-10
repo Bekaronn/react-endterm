@@ -1,26 +1,51 @@
 import { useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { MapPin, DollarSign, Briefcase, Calendar, ArrowLeft, Share2 } from 'lucide-react';
+import { MapPin, DollarSign, Briefcase, Calendar, ArrowLeft, Share2, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import Spinner from '../components/Spinner';
 import ErrorBox from '../components/ErrorBox';
+import { useAuth } from '../context/AuthProvider';
 import { fetchJobBySlugThunk } from '../features/jobs/jobsSlice';
+import { addFavoriteThunk, removeFavoriteThunk, loadFavoritesThunk } from '../features/favorites/favoritesSlice';
 import type { AppDispatch, RootState } from '../store';
 
 export default function ItemDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
+  const { user } = useAuth();
 
   const { selectedJob: job, loadingJob, errorJob } = useSelector((state: RootState) => state.jobs);
+  const { jobIds: favoriteIds } = useSelector((state: RootState) => state.favorites);
+
+  useEffect(() => {
+    dispatch(loadFavoritesThunk({ uid: user?.uid ?? null }));
+  }, [dispatch, user?.uid]);
 
   useEffect(() => {
     if (id) {
       dispatch(fetchJobBySlugThunk(id));
     }
   }, [dispatch, id]);
+
+  const isFavorite = job ? favoriteIds.includes(job.slug) : false;
+
+  const handleToggleFavorite = async () => {
+    if (!job) return;
+    try {
+      if (isFavorite) {
+        await dispatch(removeFavoriteThunk({ uid: user?.uid ?? null, jobId: job.slug })).unwrap();
+        toast.success('Removed from bookmarks');
+      } else {
+        await dispatch(addFavoriteThunk({ uid: user?.uid ?? null, jobId: job.slug })).unwrap();
+        toast.success('Added to bookmarks');
+      }
+    } catch (err) {
+      toast.error(isFavorite ? 'Failed to remove bookmark' : 'Failed to add bookmark');
+    }
+  };
 
   const levelLabel = useMemo(() => {
     const match = job?.tags?.find((tag) =>
@@ -152,6 +177,14 @@ export default function ItemDetails() {
                 Apply Now
               </Button>
             )}
+            <Button
+              variant={isFavorite ? 'default' : 'outline'}
+              onClick={handleToggleFavorite}
+              className={isFavorite ? 'bg-red-500 text-white hover:bg-red-600' : ''}
+            >
+              <Heart className={`w-4 h-4 mr-2 ${isFavorite ? 'fill-current' : ''}`} />
+              {isFavorite ? 'Bookmarked' : 'Bookmark'}
+            </Button>
             <Button variant="outline" onClick={handleShare}>
               <Share2 className="w-4 h-4 mr-2" />
               Share
