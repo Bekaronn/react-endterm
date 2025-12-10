@@ -4,7 +4,8 @@ import { updateProfile } from 'firebase/auth';
 import { useDispatch } from 'react-redux';
 import { Camera, LogOut, ShieldCheck, User2, Check } from 'lucide-react';
 import { toast } from 'sonner';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useTranslation } from 'react-i18next';
+import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Spinner from '../components/Spinner';
@@ -13,6 +14,13 @@ import { getUserProfile, saveUserProfile, uploadAvatar } from '../services/profi
 import { setProfile } from '../features/profile/profileSlice';
 import type { AppDispatch } from '../store';
 import { SkeletonImage } from '../components/SkeletonImage';
+import { cn } from '@/lib/utils';
+
+const DEFAULT_AVATARS = [
+  '/avatars/default-1.jpg',
+  '/avatars/default-2.jpg',
+  '/avatars/default-3.jpg',
+];
 
 export default function Profile() {
   const { user, loading, logout } = useAuth();
@@ -117,7 +125,7 @@ export default function Profile() {
     if (photoUrl === src) return;
 
     setUploading(true);
-    setStatus('Применяем стиль…');
+    setStatus(t('profile.statusApplyStyle', { defaultValue: 'Applying style…' }));
 
     try {
       // 1. Обновляем Firebase Auth
@@ -139,10 +147,10 @@ export default function Profile() {
         }),
       );
 
-      setStatus('Аватар обновлен.');
-      toast.success('Стиль профиля изменен');
+      setStatus(t('profile.statusPhotoUpdated', { defaultValue: 'Photo updated.' }));
+      toast.success(t('profile.styleChanged', { defaultValue: 'Profile style updated' }));
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Не удалось сменить аватар';
+      const message = err instanceof Error ? err.message : t('profile.uploadFail', { defaultValue: 'Failed to change avatar' });
       setStatus(message);
       toast.error(message);
     } finally {
@@ -156,8 +164,8 @@ export default function Profile() {
     if (!file || !user) return;
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
     if (!allowedTypes.includes(file.type)) {
-      setStatus(t('profile.uploadHint'));
-      toast.error(t('profile.uploadHint'));
+      setStatus(t('profile.invalidFileType', { defaultValue: 'Please select an image (jpg or png).' }));
+      toast.error(t('profile.invalidFileType', { defaultValue: 'Please select an image (jpg or png).' }));
       return;
     }
 
@@ -259,14 +267,13 @@ export default function Profile() {
                 <SkeletonImage
                   src={photoUrl}
                   alt={user.displayName ?? user.email ?? 'User'}
-                  // Передаем fallback (инициалы), если фото нет
                   fallback={
                     <div className="flex h-full w-full items-center justify-center text-xl text-muted-foreground font-medium">
                       {user.email?.[0]?.toUpperCase() ?? 'U'}
                     </div>
                   }
                 />
-          </Avatar>
+              </Avatar>
               <button
                 type="button"
                 aria-label={t('profile.updatePhoto')}
@@ -341,15 +348,17 @@ export default function Profile() {
 
           <div className="bg-card border border-border rounded-2xl shadow-sm p-6 space-y-4">
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-card-foreground">Обновить фото</p>
+              <p className="text-sm font-semibold text-card-foreground">{t('profile.updatePhoto')}</p>
               <p className="text-sm text-muted-foreground">
-                Поддерживаются JPG/PNG, размер до 2 МБ. Изображение будет сжато перед загрузкой.
+                {t('profile.uploadHint')}
               </p>
         </div>
 
             {/* --- БЛОК ВЫБОРА ГОТОВЫХ СТИЛЕЙ --- */}
             <div className="mb-4">
-              <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Готовые стили</p>
+              <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">
+                {t('profile.defaultStyles', { defaultValue: 'Default styles' })}
+              </p>
               <div className="flex gap-3">
                 {DEFAULT_AVATARS.map((src, index) => {
                   const isSelected = photoUrl === src;
@@ -388,7 +397,9 @@ export default function Profile() {
                 <span className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Или загрузите фото</span>
+                <span className="bg-card px-2 text-muted-foreground">
+                  {t('profile.orUpload', { defaultValue: 'Or upload a photo' })}
+                </span>
               </div>
             </div>
             {/* ------------------------------------- */}
@@ -416,12 +427,12 @@ export default function Profile() {
           />
               <div className="flex items-start gap-3">
                 <div className="flex-1 space-y-2">
-                  <p className="text-sm text-card-foreground">Перетащите файл или нажмите, чтобы выбрать.</p>
-                  <p className="text-xs text-muted-foreground">Максимальный размер 2 МБ.</p>
+                  <p className="text-sm text-card-foreground">{t('profile.selectFile')}</p>
+                  <p className="text-xs text-muted-foreground">{t('profile.maxSize')}</p>
                 </div>
                 <div className="flex items-center gap-2 text-primary font-semibold text-sm">
                   <Camera className="h-4 w-4" />
-                  {uploading ? 'Загрузка...' : 'Выбрать фото'}
+                  {uploading ? t('profile.saving') : t('profile.choosePhoto')}
                 </div>
               </div>
         </div>
