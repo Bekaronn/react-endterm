@@ -2,9 +2,9 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Navigate } from 'react-router-dom';
 import { updateProfile } from 'firebase/auth';
 import { useDispatch } from 'react-redux';
-import { Camera, LogOut, ShieldCheck, User2 } from 'lucide-react';
+import { Camera, LogOut, ShieldCheck, User2, Check } from 'lucide-react';
 import { toast } from 'sonner';
-import { Avatar } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Spinner from '../components/Spinner';
@@ -13,7 +13,6 @@ import { getUserProfile, saveUserProfile, uploadAvatar } from '../services/profi
 import { setProfile } from '../features/profile/profileSlice';
 import type { AppDispatch } from '../store';
 import { SkeletonImage } from '../components/SkeletonImage';
-import { useTranslation } from 'react-i18next';
 
 export default function Profile() {
   const { user, loading, logout } = useAuth();
@@ -109,6 +108,48 @@ export default function Profile() {
 
     return compressed ?? file;
   }
+
+  // --- НОВАЯ ФУНКЦИЯ ДЛЯ ВЫБОРА ГОТОВЫХ АВАТАРОВ ---
+  async function handleSelectDefault(src: string) {
+    if (!user || uploading) return;
+    
+    // Если этот аватар уже стоит, не тратим ресурсы
+    if (photoUrl === src) return;
+
+    setUploading(true);
+    setStatus('Применяем стиль…');
+
+    try {
+      // 1. Обновляем Firebase Auth
+      await updateProfile(user, { photoURL: src });
+      
+      // 2. Обновляем базу данных Firestore
+      await saveUserProfile(user.uid, { photoURL: src, displayName: user.displayName ?? undefined });
+      
+      // 3. Обновляем локальный стейт
+      setPhotoUrl(src);
+      
+      // 4. Обновляем Redux
+      dispatch(
+        setProfile({
+          displayName: user.displayName ?? null,
+          email: user.email ?? null,
+          photoURL: src,
+          uid: user.uid,
+        }),
+      );
+
+      setStatus('Аватар обновлен.');
+      toast.success('Стиль профиля изменен');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Не удалось сменить аватар';
+      setStatus(message);
+      toast.error(message);
+    } finally {
+      setUploading(false);
+    }
+  }
+  // ---------------------------------------------------
 
   async function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -230,7 +271,10 @@ export default function Profile() {
                 type="button"
                 aria-label={t('profile.updatePhoto')}
                 className="absolute -bottom-2 -right-2 flex items-center justify-center rounded-full bg-primary text-primary-foreground p-2 shadow-lg hover:bg-primary/90 transition disabled:opacity-60"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={(e) => {
+                   e.stopPropagation(); // Чтобы клик по кнопке не вызывал двойной клик родителя
+                   fileInputRef.current?.click();
+                }}
                 disabled={uploading}
               >
                 <Camera className="h-4 w-4" />
@@ -297,14 +341,60 @@ export default function Profile() {
 
           <div className="bg-card border border-border rounded-2xl shadow-sm p-6 space-y-4">
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-card-foreground">{t('profile.updatePhoto')}</p>
+              <p className="text-sm font-semibold text-card-foreground">Обновить фото</p>
               <p className="text-sm text-muted-foreground">
-                {t('profile.uploadHint')}
+                Поддерживаются JPG/PNG, размер до 2 МБ. Изображение будет сжато перед загрузкой.
               </p>
         </div>
 
+            {/* --- БЛОК ВЫБОРА ГОТОВЫХ СТИЛЕЙ --- */}
+            <div className="mb-4">
+              <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Готовые стили</p>
+              <div className="flex gap-3">
+                {DEFAULT_AVATARS.map((src, index) => {
+                  const isSelected = photoUrl === src;
+                  return (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => handleSelectDefault(src)}
+                      disabled={uploading}
+                      className={cn(
+                        "relative h-12 w-12 rounded-full overflow-hidden border-2 transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
+                        isSelected ? "border-primary ring-2 ring-primary ring-offset-1" : "border-transparent"
+                      )}
+                    >
+                      {/* Используем SkeletonImage и тут для плавности */}
+                      <SkeletonImage 
+                        src={src} 
+                        alt={`Default avatar ${index + 1}`} 
+                        className="h-full w-full object-cover" 
+                        fallback={<div className="h-full w-full bg-muted" />}
+                      />
+                      {isSelected && (
+                         <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                            <Check className="w-5 h-5 text-white drop-shadow-md" />
+                         </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            
+            {/* Разделитель */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">Или загрузите фото</span>
+              </div>
+            </div>
+            {/* ------------------------------------- */}
+
             <div
-              className="rounded-xl border border-dashed border-border bg-muted/20 p-4 cursor-pointer transition hover:border-primary/60 hover:bg-primary/5"
+              className="rounded-xl border border-dashed border-border bg-muted/20 p-4 cursor-pointer transition hover:border-primary/60 hover:bg-primary/5 mt-4"
               role="button"
               tabIndex={0}
               onClick={() => fileInputRef.current?.click()}
@@ -326,12 +416,12 @@ export default function Profile() {
           />
               <div className="flex items-start gap-3">
                 <div className="flex-1 space-y-2">
-                  <p className="text-sm text-card-foreground">{t('profile.selectFile')}</p>
-                  <p className="text-xs text-muted-foreground">{t('profile.maxSize')}</p>
+                  <p className="text-sm text-card-foreground">Перетащите файл или нажмите, чтобы выбрать.</p>
+                  <p className="text-xs text-muted-foreground">Максимальный размер 2 МБ.</p>
                 </div>
                 <div className="flex items-center gap-2 text-primary font-semibold text-sm">
                   <Camera className="h-4 w-4" />
-                  {uploading ? t('profile.saving') : t('profile.choosePhoto')}
+                  {uploading ? 'Загрузка...' : 'Выбрать фото'}
                 </div>
               </div>
         </div>
@@ -347,4 +437,3 @@ export default function Profile() {
     </main>
   );
 }
-
