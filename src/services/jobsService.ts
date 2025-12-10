@@ -34,6 +34,10 @@ function jobsCollection(firestore: Firestore) {
 
 type FetchJobsParams = {
   search?: string | null;
+  /**
+   * Alias для совместимости с thunk, который передает `query`.
+   */
+  query?: string | null;
   page?: number;
   pageSize?: number;
   typeFilter?: string | null;
@@ -83,6 +87,7 @@ function serializeJob(raw: unknown): Job {
 
 export async function fetchJobs({
   search = '',
+  query = '',
   page = 1,
   pageSize = 10,
   typeFilter = 'All',
@@ -117,7 +122,7 @@ export async function fetchJobs({
 
   const q = query(col, ...constraints, fsLimit(Math.max(safePageSize * safePage, safePageSize)));
   const snap = await getDocs(q);
-  const searchLower = (search ?? '').trim().toLowerCase();
+  const searchLower = (search ?? query ?? '').trim().toLowerCase();
 
   const allJobs = snap.docs.map((d) => serializeJob(d.data()));
 

@@ -7,6 +7,7 @@ import Spinner from '../components/Spinner';
 import ErrorBox from '../components/ErrorBox';
 import type { RootState, AppDispatch } from '../store';
 import { fetchJobsThunk, setQuery } from '../features/jobs/jobsSlice';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 
 const JOB_TYPE_OPTIONS = [
   'All',
@@ -266,24 +267,76 @@ const SORT_OPTIONS = [
 
 export default function Items() {
   const dispatch = useDispatch<AppDispatch>();
-
   const [searchParams, setSearchParams] = useSearchParams();
-  const q = searchParams.get('q') ?? '';
-
   const { list, loadingList, errorList, total } = useSelector((state: RootState) => state.jobs);
+
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedType, setSelectedType] = useState('All');
-  const [selectedTag, setSelectedTag] = useState('All');
-  const [companyFilter, setCompanyFilter] = useState('');
-  const [selectedRemote, setSelectedRemote] = useState<'All' | 'true' | 'false'>('All');
-  const [selectedSort, setSelectedSort] = useState<'newest' | 'oldest' | 'company' | 'title'>('newest');
-  const [currentPage, setCurrentPage] = useState(1);
+
+  // Инициализация из URL
+  const initialSearch = searchParams.get('q') ?? '';
+  const initialType = searchParams.get('type') ?? 'All';
+  const initialTag = searchParams.get('tag') ?? 'All';
+  const initialCompany = searchParams.get('company') ?? '';
+  const initialRemote = (searchParams.get('remote') as 'All' | 'true' | 'false' | null) ?? 'All';
+  const initialSort = (searchParams.get('sort') as 'newest' | 'oldest' | 'company' | 'title' | null) ?? 'newest';
+  const initialPage = Number.parseInt(searchParams.get('page') ?? '1', 10);
+
+  const [searchInput, setSearchInput] = useState(initialSearch);
+  const [selectedType, setSelectedType] = useState(initialType);
+  const [selectedTag, setSelectedTag] = useState(initialTag);
+  const [companyFilter, setCompanyFilter] = useState(initialCompany);
+  const [selectedRemote, setSelectedRemote] = useState<'All' | 'true' | 'false'>(
+    initialRemote === 'true' || initialRemote === 'false' ? initialRemote : 'All',
+  );
+  const [selectedSort, setSelectedSort] = useState<'newest' | 'oldest' | 'company' | 'title'>(
+    initialSort ?? 'newest',
+  );
+  const [currentPage, setCurrentPage] = useState(Number.isFinite(initialPage) && initialPage > 0 ? initialPage : 1);
+
+  const debouncedSearch = useDebouncedValue(searchInput, 400);
   const PAGE_SIZE = 10;
 
+  // helper to update URL params consistently
+  function updateParams(updates: Record<string, string | null | undefined>) {
+    const next = new URLSearchParams(searchParams);
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') next.delete(key);
+      else next.set(key, value);
+    });
+    setSearchParams(next, { replace: true });
+  }
+
+  // синхронизация стейтов с URL при навигации назад/вперед
+  useEffect(() => {
+    const q = searchParams.get('q') ?? '';
+    const type = searchParams.get('type') ?? 'All';
+    const tag = searchParams.get('tag') ?? 'All';
+    const company = searchParams.get('company') ?? '';
+    const remote = (searchParams.get('remote') as 'All' | 'true' | 'false' | null) ?? 'All';
+    const sort = (searchParams.get('sort') as 'newest' | 'oldest' | 'company' | 'title' | null) ?? 'newest';
+    const page = Number.parseInt(searchParams.get('page') ?? '1', 10);
+
+    setSearchInput(q);
+    setSelectedType(type);
+    setSelectedTag(tag);
+    setCompanyFilter(company);
+    setSelectedRemote(remote === 'true' || remote === 'false' ? remote : 'All');
+    setSelectedSort(sort ?? 'newest');
+    setCurrentPage(Number.isFinite(page) && page > 0 ? page : 1);
+  }, [searchParams]);
+
+  // дебаунс поиска + запись в URL
+  useEffect(() => {
+    dispatch(setQuery(debouncedSearch));
+    updateParams({ q: debouncedSearch || null, page: '1' });
+    setCurrentPage(1);
+  }, [debouncedSearch, dispatch]);
+
+  // запрос вакансий
   useEffect(() => {
     dispatch(
       fetchJobsThunk({
-        query: q,
+        query: debouncedSearch,
         page: currentPage,
         pageSize: PAGE_SIZE,
         typeFilter: selectedType,
@@ -293,19 +346,12 @@ export default function Items() {
         sortBy: selectedSort,
       }),
     );
-  }, [dispatch, q, currentPage, selectedTag, selectedType, companyFilter, selectedRemote, selectedSort]);
+  }, [dispatch, debouncedSearch, currentPage, selectedTag, selectedType, companyFilter, selectedRemote, selectedSort]);
 
   function onChange(e: ChangeEvent<HTMLInputElement>) {
     const v = e.target.value;
-    dispatch(setQuery(v));
-
-    if (v) setSearchParams({ q: v });
-    else setSearchParams({});
+    setSearchInput(v);
   }
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedTag, selectedType, q, companyFilter, selectedRemote, selectedSort]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -333,8 +379,45 @@ export default function Items() {
   useEffect(() => {
     if (currentPage > totalPages) {
       setCurrentPage(totalPages);
+      updateParams({ page: String(totalPages) });
     }
   }, [currentPage, totalPages]);
+
+  function handlePageChange(nextPage: number) {
+    const safe = Math.max(1, Math.min(totalPages, nextPage));
+    setCurrentPage(safe);
+    updateParams({ page: String(safe) });
+  }
+
+  function handleTypeChange(value: string) {
+    setSelectedType(value);
+    setCurrentPage(1);
+    updateParams({ type: value === 'All' ? null : value, page: '1' });
+  }
+
+  function handleTagChange(value: string) {
+    setSelectedTag(value);
+    setCurrentPage(1);
+    updateParams({ tag: value === 'All' ? null : value, page: '1' });
+  }
+
+  function handleCompanyChange(value: string) {
+    setCompanyFilter(value);
+    setCurrentPage(1);
+    updateParams({ company: value || null, page: '1' });
+  }
+
+  function handleRemoteChange(value: 'All' | 'true' | 'false') {
+    setSelectedRemote(value);
+    setCurrentPage(1);
+    updateParams({ remote: value === 'All' ? null : value, page: '1' });
+  }
+
+  function handleSortChange(value: 'newest' | 'oldest' | 'company' | 'title') {
+    setSelectedSort(value);
+    setCurrentPage(1);
+    updateParams({ sort: value, page: '1' });
+  }
 
   return (
     <main className="min-h-screen bg-background py-8 px-4">
@@ -351,7 +434,7 @@ export default function Items() {
             <input
               type="text"
               placeholder="Search by job title, company, or location..."
-              value={q}
+              value={searchInput}
               onChange={onChange}
               className="w-full pl-12 pr-4 py-3 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
             />
@@ -368,17 +451,17 @@ export default function Items() {
           </button>
           <div className="flex items-center gap-2 text-sm ml-auto">
             <span className="text-muted-foreground">Sort by:</span>
-            <select
-              value={selectedSort}
-              onChange={(e) => setSelectedSort(e.target.value as typeof selectedSort)}
-              className="px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              {SORT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              <select
+                value={selectedSort}
+                onChange={(e) => handleSortChange(e.target.value as typeof selectedSort)}
+                className="px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                {SORT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
           </div>
         </div>
 
@@ -388,8 +471,8 @@ export default function Items() {
               <div>
                 <h3 className="font-semibold text-card-foreground mb-4">Job Type</h3>
                 <select
-                  value={selectedType}
-                  onChange={(e) => setSelectedType(e.target.value)}
+                value={selectedType}
+                onChange={(e) => handleTypeChange(e.target.value)}
                   className="w-full px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   {JOB_TYPE_OPTIONS.map((type) => (
@@ -404,8 +487,8 @@ export default function Items() {
                 <h3 className="font-semibold text-card-foreground mb-4">Company</h3>
                 <input
                   type="text"
-                  value={companyFilter}
-                  onChange={(e) => setCompanyFilter(e.target.value)}
+                value={companyFilter}
+                onChange={(e) => handleCompanyChange(e.target.value)}
                   placeholder="e.g. We Love X GmbH"
                   className="w-full px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
@@ -425,7 +508,7 @@ export default function Items() {
                         name="remote"
                         value={item.value}
                         checked={selectedRemote === item.value}
-                        onChange={(e) => setSelectedRemote(e.target.value as 'All' | 'true' | 'false')}
+                        onChange={(e) => handleRemoteChange(e.target.value as 'All' | 'true' | 'false')}
                         className="w-4 h-4"
                       />
                       <span className="text-sm text-muted-foreground">{item.label}</span>
@@ -437,8 +520,8 @@ export default function Items() {
               <div className="border-t border-border pt-4">
                 <h3 className="font-semibold text-card-foreground mb-4">Tag</h3>
                 <select
-                  value={selectedTag}
-                  onChange={(e) => setSelectedTag(e.target.value)}
+                value={selectedTag}
+                onChange={(e) => handleTagChange(e.target.value)}
                   className="w-full px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   {TAG_OPTIONS.map((tag) => (
@@ -457,7 +540,7 @@ export default function Items() {
                 <h3 className="font-semibold text-card-foreground mb-4">Job Type</h3>
                 <select
                   value={selectedType}
-                  onChange={(e) => setSelectedType(e.target.value)}
+                  onChange={(e) => handleTypeChange(e.target.value)}
                   className="w-full px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   {JOB_TYPE_OPTIONS.map((type) => (
@@ -473,7 +556,7 @@ export default function Items() {
                 <input
                   type="text"
                   value={companyFilter}
-                  onChange={(e) => setCompanyFilter(e.target.value)}
+                  onChange={(e) => handleCompanyChange(e.target.value)}
                   placeholder="e.g. We Love X GmbH"
                   className="w-full px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
@@ -493,7 +576,7 @@ export default function Items() {
                         name="remote-mobile"
                         value={item.value}
                         checked={selectedRemote === item.value}
-                        onChange={(e) => setSelectedRemote(e.target.value as 'All' | 'true' | 'false')}
+                        onChange={(e) => handleRemoteChange(e.target.value as 'All' | 'true' | 'false')}
                         className="w-4 h-4"
                       />
                       <span className="text-sm text-muted-foreground">{item.label}</span>
@@ -506,7 +589,7 @@ export default function Items() {
                 <h3 className="font-semibold text-card-foreground mb-4">Tag</h3>
                 <select
                   value={selectedTag}
-                  onChange={(e) => setSelectedTag(e.target.value)}
+                  onChange={(e) => handleTagChange(e.target.value)}
                   className="w-full px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   {TAG_OPTIONS.map((tag) => (
@@ -594,7 +677,7 @@ export default function Items() {
                     <div className="flex items-center gap-2">
                       <button
                         className="px-3 py-1 rounded-md border border-border text-sm disabled:opacity-50"
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        onClick={() => handlePageChange(currentPage - 1)}
                         disabled={currentPage === 1}
                       >
                         Previous
@@ -612,7 +695,7 @@ export default function Items() {
                                 ? 'bg-primary text-primary-foreground border-primary'
                                 : 'border-border hover:border-primary hover:text-primary'
                             }`}
-                            onClick={() => setCurrentPage(item)}
+                            onClick={() => handlePageChange(item)}
                           >
                             {item}
                           </button>
@@ -620,7 +703,7 @@ export default function Items() {
                       )}
                       <button
                         className="px-3 py-1 rounded-md border border-border text-sm disabled:opacity-50"
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        onClick={() => handlePageChange(currentPage + 1)}
                         disabled={currentPage === totalPages}
                       >
                         Next
