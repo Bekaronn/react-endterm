@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { Menu, X, Compass, Moon, Sun } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -9,11 +10,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useTheme } from "@/components/theme-provider"
+import { useAuth } from "../context/AuthProvider";
 
 export default function Navbar() {
   const { setTheme } = useTheme()
   const [isOpen, setIsOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { user, loading, logout } = useAuth();
 
   return (
     <nav className="bg-background border-b border-border sticky top-0 z-50">
@@ -31,57 +33,64 @@ export default function Navbar() {
             <NavLink to="/" className="text-foreground hover:text-primary transition">
               Home
             </NavLink>
-            <NavLink to="/jobs" className="text-foreground hover:text-primary transition">
-              Jobs
-            </NavLink>
           </div>
 
-          {/* Auth Buttons */}
-          <div className="hidden md:flex items-center gap-4">
-            {isLoggedIn ? (
-              <>
-                <NavLink to="/applications">
-                  <Button variant="outline">Applications</Button>
-                </NavLink>
-                <NavLink to="/messages">
-                  <Button variant="outline">Messages</Button>
-                </NavLink>
-                <Button variant="outline" onClick={() => setIsLoggedIn(false)}>
-                  Logout
+          {/* Right Controls */}
+          <div className="hidden md:flex items-center gap-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <Sun className="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
+                  <Moon className="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
+                  <span className="sr-only">Toggle theme</span>
                 </Button>
-              </>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setTheme("light")}>
+                  Light
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme("dark")}>
+                  Dark
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme("system")}>
+                  System
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-2 rounded-full border border-border px-2 py-1 hover:border-primary transition">
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName ?? user.email ?? "User"} />
+                      <AvatarFallback>{user.email?.[0]?.toUpperCase() ?? "U"}</AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-semibold text-foreground hidden lg:inline">
+                      {user.displayName || user.email}
+                    </span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem asChild>
+                    <NavLink to="/profile">Profile</NavLink>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => void logout()}>Logout</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
               <>
                 <NavLink to="/login">
-                  <Button variant="outline">Login</Button>
+                  <Button variant="outline" disabled={loading}>Login</Button>
                 </NavLink>
                 <NavLink to="/signup">
-                  <Button className="bg-primary text-primary-foreground hover:bg-primary/90">Sign Up</Button>
+                  <Button className="bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
+                    Sign Up
+                  </Button>
                 </NavLink>
               </>
             )}
           </div>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon">
-                <Sun className="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
-                <Moon className="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
-                <span className="sr-only">Toggle theme</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setTheme("light")}>
-                Light
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("dark")}>
-                Dark
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("system")}>
-                System
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
 
           {/* Mobile Menu Button */}
           <button onClick={() => setIsOpen(!isOpen)} className="md:hidden text-foreground">
@@ -95,27 +104,34 @@ export default function Navbar() {
             <NavLink to="/" className="block py-2 text-foreground hover:text-primary">
               Home
             </NavLink>
-            <NavLink to="/jobs" className="block py-2 text-foreground hover:text-primary">
-              Jobs
-            </NavLink>
+
+            <div className="flex items-center gap-2 px-2 pt-1">
+              <span className="text-sm text-muted-foreground">Theme</span>
+              <div className="flex gap-1">
+                <Button size="sm" variant="outline" className="px-2" onClick={() => setTheme("light")} disabled={loading}>Light</Button>
+                <Button size="sm" variant="outline" className="px-2" onClick={() => setTheme("dark")} disabled={loading}>Dark</Button>
+                <Button size="sm" variant="outline" className="px-2" onClick={() => setTheme("system")} disabled={loading}>System</Button>
+              </div>
+            </div>
 
             <div className="pt-4 space-y-2">
-              {isLoggedIn ? (
+              {user ? (
                 <>
-                  <NavLink to="/applications" className="block">
-                    <Button variant="outline" className="w-full bg-transparent">
-                      Applications
-                    </Button>
-                  </NavLink>
-                  <NavLink to="/messages" className="block">
-                    <Button variant="outline" className="w-full bg-transparent">
-                      Messages
-                    </Button>
+                  <NavLink to="/profile" className="flex items-center gap-3 px-2">
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName ?? user.email ?? "User"} />
+                      <AvatarFallback>{user.email?.[0]?.toUpperCase() ?? "U"}</AvatarFallback>
+                    </Avatar>
+                    <div className="text-left">
+                      <p className="text-sm font-semibold text-foreground">{user.displayName || user.email}</p>
+                      <p className="text-xs text-muted-foreground">Profile</p>
+                    </div>
                   </NavLink>
                   <Button
                     variant="outline"
                     className="w-full bg-transparent"
-                    onClick={() => setIsLoggedIn(false)}
+                    onClick={() => void logout()}
+                    disabled={loading}
                   >
                     Logout
                   </Button>
@@ -123,12 +139,12 @@ export default function Navbar() {
               ) : (
                 <>
                   <NavLink to="/login" className="block">
-                    <Button variant="outline" className="w-full bg-transparent">
+                    <Button variant="outline" className="w-full bg-transparent" disabled={loading}>
                       Login
                     </Button>
                   </NavLink>
                   <NavLink to="/signup" className="block">
-                    <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
+                    <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
                       Sign Up
                     </Button>
                   </NavLink>

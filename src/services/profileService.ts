@@ -39,9 +39,31 @@ export async function saveUserProfile(uid: string, data: Partial<UserProfile>) {
 }
 
 export async function uploadAvatar(uid: string, file: Blob) {
-  const fileName = `${Date.now()}.jpg`;
-  const storageRef = ref(storage, `avatars/${uid}/${fileName}`);
-  await uploadBytes(storageRef, file);
-  return getDownloadURL(storageRef);
+  const API_URL = "http://88.218.170.214:8000/upload/avatar";
+  const API_KEY = "SUPER_SECRET_KEY_123";
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: {
+      "x-api-key": API_KEY,
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    throw new Error("Upload failed");
+  }
+
+  const data = await res.json();
+
+  const fullUrl = `http://88.218.170.214:8000${data.url}`;
+
+  await saveUserProfile(uid, { photoURL: fullUrl });
+
+  return fullUrl;
 }
+
 
