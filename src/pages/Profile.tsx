@@ -6,6 +6,7 @@ import { Camera, LogOut, ShieldCheck, User2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import Spinner from '../components/Spinner';
 import { useAuth } from '../context/AuthProvider';
 import { getUserProfile, saveUserProfile, uploadAvatar } from '../services/profileService';
@@ -18,6 +19,8 @@ export default function Profile() {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [name, setName] = useState('');
+  const [savingName, setSavingName] = useState(false);
   const workerRef = useRef<Worker | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -27,6 +30,7 @@ export default function Profile() {
       return;
     }
     setPhotoUrl(user.photoURL ?? null);
+    setName(user.displayName ?? '');
     dispatch(
       setProfile({
         displayName: user.displayName ?? null,
@@ -37,8 +41,13 @@ export default function Profile() {
     );
     void (async () => {
       const profile = await getUserProfile(user.uid);
-      if (profile?.photoURL) {
-        setPhotoUrl(profile.photoURL);
+      if (profile) {
+        if (profile.photoURL) {
+          setPhotoUrl(profile.photoURL);
+        }
+        if (profile.displayName) {
+          setName(profile.displayName);
+        }
         dispatch(
           setProfile({
             displayName: profile.displayName ?? user.displayName ?? null,
@@ -101,7 +110,8 @@ export default function Profile() {
   async function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !user) return;
-    if (!file.type.startsWith('image/')) {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedTypes.includes(file.type)) {
       setStatus('Пожалуйста, выберите изображение (jpg или png).');
       toast.error('Пожалуйста, выберите изображение (jpg или png).');
       return;
@@ -140,6 +150,43 @@ export default function Profile() {
       toast.error(message);
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleSaveName() {
+    if (!user) return;
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setStatus('Имя не может быть пустым.');
+      toast.error('Имя не может быть пустым.');
+      return;
+    }
+    if (trimmed === user.displayName) {
+      setStatus('Имя без изменений.');
+      return;
+    }
+
+    setSavingName(true);
+    setStatus('Сохраняем имя…');
+    try {
+      await updateProfile(user, { displayName: trimmed });
+      await saveUserProfile(user.uid, { displayName: trimmed });
+      dispatch(
+        setProfile({
+          displayName: trimmed,
+          email: user.email ?? null,
+          photoURL: photoUrl ?? user.photoURL ?? null,
+          uid: user.uid,
+        }),
+      );
+      setStatus('Имя обновлено.');
+      toast.success('Имя обновлено');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Не удалось обновить имя';
+      setStatus(message);
+      toast.error(message);
+    } finally {
+      setSavingName(false);
     }
   }
 
@@ -210,9 +257,19 @@ export default function Profile() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Имя</p>
-                <p className="text-lg font-semibold text-card-foreground">{user.displayName || 'Не указано'}</p>
+              <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Имя</p>
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Введите имя"
+                    disabled={savingName || uploading}
+                  />
+                </div>
+                <Button size="sm" onClick={handleSaveName} disabled={savingName || uploading}>
+                  {savingName ? 'Сохраняем…' : 'Сохранить имя'}
+                </Button>
               </div>
 
               <div className="rounded-xl border border-border bg-muted/30 p-4">
@@ -249,7 +306,7 @@ export default function Profile() {
             >
               <input
                 type="file"
-                accept="image/*"
+                accept="image/png,image/jpeg"
                 onChange={handleFileChange}
                 disabled={uploading}
                 className="sr-only"

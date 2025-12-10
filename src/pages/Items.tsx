@@ -12,263 +12,8 @@ import { useAuth } from '../context/AuthProvider';
 import type { RootState, AppDispatch } from '../store';
 import { fetchJobsThunk, setQuery } from '../features/jobs/jobsSlice';
 import { addFavoriteThunk, removeFavoriteThunk, loadFavoritesThunk } from '../features/favorites/favoritesSlice';
+import { JOB_TYPE_OPTIONS, TAG_OPTIONS, SORT_OPTIONS, JOBS_PAGE_SIZE } from '../constants/jobFilters';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
-
-const JOB_TYPE_OPTIONS = [
-  'All',
-  'Apprenticeship',
-  'Contract',
-  'Dual studies',
-  'Experienced',
-  'Freelance',
-  'Full-time',
-  'Full-time fixed-term',
-  'Full-time permanent',
-  'Interim',
-  'Internship',
-  'Junior',
-  'Management',
-  'Manager',
-  'Part-time',
-  'Senior',
-  'Side',
-  'Team Lead',
-  'Thesis',
-  'Voluntary',
-  'Working student',
-  'berufseinstieg',
-  'berufserfahren',
-  'entry',
-  'experienced',
-  'geschäftsleitung',
-  'hilfstätigkeit / student',
-  'manager',
-  'mid',
-  'no experience required / student',
-  'professional / experienced',
-  'teamleitung',
-];
-
-const TAG_OPTIONS = [
-  'All',
-  'AI',
-  'Account Management',
-  'Accounting',
-  'Accounts Receivable',
-  'Administration',
-  'Advisory',
-  'Affiliate',
-  'Agency',
-  'Amazon',
-  'Analysis',
-  'Analytics',
-  'Applications Administration',
-  'Architecture',
-  'Artificial Intelligence',
-  'Asset',
-  'Assistant',
-  'Audit',
-  'Auditor',
-  'Automation',
-  'Automation Engineering',
-  'Automotive Engineering',
-  'B2B',
-  'Backend',
-  'Banking',
-  'Brand Management',
-  'Branding',
-  'Building',
-  'Business',
-  'Business Analysis',
-  'Business Consulting',
-  'Business Development',
-  'Business Intelligence',
-  'Business Operations',
-  'CRM',
-  'CX',
-  'Campaign Management',
-  'Category Management',
-  'Chemistry',
-  'Chief Executives',
-  'Cloud',
-  'Coaching',
-  'Cobol',
-  'Community',
-  'Compliance',
-  'Construction',
-  'Consulting',
-  'Content',
-  'Content Creation',
-  'Controlling',
-  'Copywriting',
-  'Corporate Communication',
-  'Creative',
-  'Creator',
-  'Customer Service',
-  'Customer Success',
-  'Data',
-  'Data Center',
-  'Data Engineer',
-  'Data Processing',
-  'Data Protection',
-  'Data Scientist',
-  'Database',
-  'Design',
-  'DevOps',
-  'Development',
-  'Digital Media',
-  'Direct Marketing',
-  'Directors',
-  'Distribution Marketing',
-  'Driver',
-  'E-Commerce',
-  'ERP',
-  'Education',
-  'Electrical',
-  'Electronics',
-  'Embedded Systems',
-  'Engagement',
-  'Engineering',
-  'Entrepreneurship',
-  'Executive Assistant',
-  'Facility Management',
-  'Fashion',
-  'Field Sales',
-  'Field Service',
-  'Finance',
-  'Firmware Development',
-  'Fitness',
-  'Fonds Management',
-  'Frontend',
-  'Full Stack',
-  'Gastronomy',
-  'Google Ads',
-  'Graphic Design',
-  'Growth',
-  'HR',
-  'Hardware',
-  'Hardware Design',
-  'Health',
-  'Healthcare',
-  'Healthtech',
-  'Helpdesk',
-  'IT',
-  'IT Architecture',
-  'IT Security',
-  'IT Support',
-  'Industrial Design',
-  'Influencer',
-  'Influencer Marketing',
-  'Information Systems',
-  'Information technology',
-  'Infrastructure',
-  'Inspection',
-  'Internet and software',
-  'Java',
-  'Junior',
-  'Key Account Management',
-  'Labor Law',
-  'Lead',
-  'Leadership',
-  'Legal',
-  'Logistics',
-  'M&A',
-  'Machine Learning',
-  'Maintenance',
-  'Management',
-  'Marketing',
-  'Marketing Assistant',
-  'Marketing Manager',
-  'Marketing and Communication',
-  'Materials Administration and Logistics',
-  'Mathematics',
-  'Mechanics',
-  'Media',
-  'Medical Technology',
-  'Mergers & Acquisitions',
-  'Microsoft',
-  'Microsoft 365',
-  'Mobile',
-  'Network',
-  'Network Engineering',
-  'Nutrition',
-  'Online Marketing',
-  'Operations',
-  'PPC',
-  'Payroll',
-  'Personnel Specialist',
-  'Pest Control',
-  'Pharma',
-  'Physics',
-  'Planning',
-  'Power Engineering and Environmental Engineering',
-  'Private Banking',
-  'Process Engineering',
-  'Process Management',
-  'Product Design',
-  'Product Management',
-  'Production',
-  'Programmatic',
-  'Project Management',
-  'Public Relations',
-  'Public Sector',
-  'Purchasing',
-  'Python',
-  'Quality Assurance',
-  'Quality Management',
-  'R&D',
-  'Real Estate',
-  'Recruiting',
-  'Recruitment and Selection',
-  'Remote',
-  'Research',
-  'Retail',
-  'Retention',
-  'SAP',
-  'SAP/ERP Consulting',
-  'SEA',
-  'SEO',
-  'Safety Services Engineering',
-  'Sales',
-  'Sales Engineer',
-  'Screen and Web Design',
-  'Security',
-  'Service Management',
-  'Social Media',
-  'Social Media Manager',
-  'Software Development',
-  'Strategic Marketing',
-  'Strategy',
-  'Supply',
-  'Support',
-  'System Administration',
-  'System Management',
-  'System and Network Administration',
-  'Talent Management',
-  'Tax',
-  'Team Leader',
-  'Technical Documentation',
-  'Technology',
-  'Telecommunications',
-  'Thesis',
-  'Trade Marketing',
-  'Trading',
-  'Training',
-  'Video',
-  'Video Editing',
-  'Web Development',
-  "bachelor's degree",
-  'high school coursework',
-  'professional',
-  'vocational',
-];
-
-const SORT_OPTIONS = [
-  { value: 'newest', label: 'Newest first' },
-  { value: 'oldest', label: 'Oldest first' },
-  { value: 'company', label: 'Company (A-Z)' },
-  { value: 'title', label: 'Title (A-Z)' },
-];
 
 export default function Items() {
   const dispatch = useDispatch<AppDispatch>();
@@ -302,9 +47,23 @@ export default function Items() {
     initialSort ?? 'newest',
   );
   const [currentPage, setCurrentPage] = useState(initialPage);
+  const companySuggestions = useMemo(() => {
+    const term = companyFilter.trim().toLowerCase();
+    if (term.length < 2) return [];
+    const names = new Set<string>();
+    list.forEach((job) => {
+      if (job.company_name) {
+        const name = job.company_name.trim();
+        if (name.toLowerCase().includes(term)) {
+          names.add(name);
+        }
+      }
+    });
+    return Array.from(names).slice(0, 6);
+  }, [companyFilter, list]);
 
   const debouncedSearch = useDebouncedValue(searchInput, 400);
-  const PAGE_SIZE = 10;
+  const PAGE_SIZE = JOBS_PAGE_SIZE;
 
   // Helper to update URL params consistently
   const updateParams = (updates: Record<string, string | null | undefined>) => {
@@ -473,6 +232,38 @@ export default function Items() {
     setCurrentPage(1);
     updateParams({ company: value || null, page: '1' });
   }
+
+  function handleCompanySelect(value: string) {
+    handleCompanyChange(value);
+  }
+
+  const renderCompanyInput = (inputId: string) => (
+    <div className="relative">
+      <input
+        id={inputId}
+        type="text"
+        value={companyFilter}
+        onChange={(e) => handleCompanyChange(e.target.value)}
+        placeholder="e.g. We Love X GmbH"
+        className="w-full px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+        autoComplete="off"
+      />
+      {companySuggestions.length > 0 && (
+        <div className="absolute z-20 mt-1 w-full rounded-md border border-border bg-card shadow-lg">
+          {companySuggestions.map((name) => (
+            <button
+              key={name}
+              type="button"
+              className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted"
+              onClick={() => handleCompanySelect(name)}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   function handleRemoteChange(value: 'All' | 'true' | 'false') {
     setSelectedRemote(value);

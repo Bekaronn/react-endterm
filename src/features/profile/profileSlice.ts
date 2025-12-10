@@ -22,10 +22,14 @@ const profileSlice = createSlice({
     setProfile(state, action: PayloadAction<ProfileData | null>) {
       state.data = action.payload;
     },
+    updateDisplayName(state, action: PayloadAction<string | null>) {
+      if (!state.data) return;
+      state.data = { ...state.data, displayName: action.payload };
+    },
   },
 });
 
-export const { setProfile } = profileSlice.actions;
+export const { setProfile, updateDisplayName } = profileSlice.actions;
 
 export default profileSlice.reducer;
 

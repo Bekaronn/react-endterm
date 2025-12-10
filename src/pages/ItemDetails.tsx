@@ -54,6 +54,19 @@ export default function ItemDetails() {
     return match ? match : 'Not specified';
   }, [job]);
 
+  const typeLabel = job?.job_types?.length ? job.job_types.join(', ') : 'Not specified';
+  const salaryLabel = job?.salary && job.salary.trim() !== '' ? job.salary : 'Not specified';
+  const postedLabel =
+    job?.updated_at && typeof job.updated_at === 'string'
+      ? job.updated_at
+      : undefined;
+  const createdLabel =
+    job?.created_at && typeof job.created_at === 'string'
+      ? job.created_at
+      : undefined;
+  const remoteLabel =
+    typeof job?.remote === 'boolean' ? (job.remote ? 'Remote' : 'On-site') : 'Not specified';
+
   if (loadingJob) return <Spinner />;
   if (errorJob) return <ErrorBox>{errorJob}</ErrorBox>;
   if (!job) {
@@ -68,13 +81,6 @@ export default function ItemDetails() {
       </main>
     );
   }
-
-  const typeLabel = job.job_types?.[0] ?? 'Not specified';
-  const salaryLabel = job.salary || 'Not specified';
-  const postedLabel =
-    job.updated_at && typeof job.updated_at === 'string'
-      ? job.updated_at
-      : undefined;
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -151,10 +157,20 @@ export default function ItemDetails() {
                     <Briefcase className="w-4 h-4" />
                     {typeLabel}
                   </div>
+                  <div className="flex items-center gap-1">
+                    <Calendar className="w-4 h-4" />
+                    {remoteLabel}
+                  </div>
                   {postedLabel && (
                     <div className="flex items-center gap-1">
                       <Calendar className="w-4 h-4" />
                       {postedLabel}
+                    </div>
+                  )}
+                  {createdLabel && (
+                    <div className="flex items-center gap-1">
+                      <Calendar className="w-4 h-4" />
+                      {createdLabel}
                     </div>
                   )}
                 </div>
@@ -226,20 +242,32 @@ export default function ItemDetails() {
               <h3 className="font-bold text-card-foreground mb-4">Quick Facts</h3>
               <div className="space-y-4 text-sm">
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Job Type</p>
-                  <p className="font-semibold text-card-foreground">{typeLabel}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Company</p>
+                  <p className="font-semibold text-card-foreground">{job.company_name}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Experience Level</p>
-                  <p className="font-semibold text-card-foreground">{levelLabel}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Job Types</p>
+                  <p className="font-semibold text-card-foreground">{typeLabel}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider">Location</p>
                   <p className="font-semibold text-card-foreground">{job.location || 'Worldwide'}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Salary Range</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Remote</p>
+                  <p className="font-semibold text-card-foreground">{remoteLabel}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Salary</p>
                   <p className="font-semibold text-card-foreground">{salaryLabel}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Created</p>
+                  <p className="font-semibold text-card-foreground">{createdLabel ?? 'Not specified'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Updated</p>
+                  <p className="font-semibold text-card-foreground">{postedLabel ?? 'Not specified'}</p>
                 </div>
               </div>
             </div>
