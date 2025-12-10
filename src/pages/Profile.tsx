@@ -4,7 +4,7 @@ import { updateProfile } from 'firebase/auth';
 import { useDispatch } from 'react-redux';
 import { Camera, LogOut, ShieldCheck, User2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Spinner from '../components/Spinner';
@@ -13,10 +13,12 @@ import { getUserProfile, saveUserProfile, uploadAvatar } from '../services/profi
 import { setProfile } from '../features/profile/profileSlice';
 import type { AppDispatch } from '../store';
 import { SkeletonImage } from '../components/SkeletonImage';
+import { useTranslation } from 'react-i18next';
 
 export default function Profile() {
   const { user, loading, logout } = useAuth();
   const dispatch = useDispatch<AppDispatch>();
+  const { t } = useTranslation();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -44,7 +46,7 @@ export default function Profile() {
       const profile = await getUserProfile(user.uid);
       if (profile) {
         if (profile.photoURL) {
-          setPhotoUrl(profile.photoURL);
+        setPhotoUrl(profile.photoURL);
         }
         if (profile.displayName) {
           setName(profile.displayName);
@@ -113,29 +115,29 @@ export default function Profile() {
     if (!file || !user) return;
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
     if (!allowedTypes.includes(file.type)) {
-      setStatus('Пожалуйста, выберите изображение (jpg или png).');
-      toast.error('Пожалуйста, выберите изображение (jpg или png).');
+      setStatus(t('profile.uploadHint'));
+      toast.error(t('profile.uploadHint'));
       return;
     }
 
     const MAX_SIZE = 2 * 1024 * 1024; // 2 MB
     if (file.size > MAX_SIZE) {
-      setStatus('Размер файла не должен превышать 2 МБ.');
-      toast.error('Размер файла не должен превышать 2 МБ.');
+      setStatus(t('profile.maxSize'));
+      toast.error(t('profile.maxSize'));
       return;
     }
 
     setUploading(true);
-    setStatus('Сжимаем изображение…');
+    setStatus(t('profile.statusCompress', { defaultValue: 'Сжимаем изображение…' }));
     try {
       const blob = await compressImage(file);
-      setStatus('Загружаем в облако…');
+      setStatus(t('profile.statusUpload', { defaultValue: 'Загружаем в облако…' }));
       const downloadUrl = await uploadAvatar(user.uid, blob);
-      setStatus('Сохраняем профиль…');
+      setStatus(t('profile.statusSaveProfile', { defaultValue: 'Сохраняем профиль…' }));
       await saveUserProfile(user.uid, { photoURL: downloadUrl, displayName: user.displayName ?? undefined });
       await updateProfile(user, { photoURL: downloadUrl });
       setPhotoUrl(downloadUrl);
-      setStatus('Фото обновлено.');
+      setStatus(t('profile.statusPhotoUpdated', { defaultValue: 'Фото обновлено.' }));
       dispatch(
         setProfile({
           displayName: user.displayName ?? null,
@@ -144,7 +146,7 @@ export default function Profile() {
           uid: user.uid,
         }),
       );
-      toast.success('Фото профиля обновлено');
+      toast.success(t('profile.statusPhotoUpdated', { defaultValue: 'Фото обновлено.' }));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Не удалось загрузить фото';
       setStatus(message);
@@ -158,17 +160,17 @@ export default function Profile() {
     if (!user) return;
     const trimmed = name.trim();
     if (!trimmed) {
-      setStatus('Имя не может быть пустым.');
-      toast.error('Имя не может быть пустым.');
+      setStatus(t('profile.nameEmpty', { defaultValue: 'Имя не может быть пустым.' }));
+      toast.error(t('profile.nameEmpty', { defaultValue: 'Имя не может быть пустым.' }));
       return;
     }
     if (trimmed === user.displayName) {
-      setStatus('Имя без изменений.');
+      setStatus(t('profile.nameUnchanged', { defaultValue: 'Имя без изменений.' }));
       return;
     }
 
     setSavingName(true);
-    setStatus('Сохраняем имя…');
+    setStatus(t('profile.saving'));
     try {
       await updateProfile(user, { displayName: trimmed });
       await saveUserProfile(user.uid, { displayName: trimmed });
@@ -180,8 +182,8 @@ export default function Profile() {
           uid: user.uid,
         }),
       );
-      setStatus('Имя обновлено.');
-      toast.success('Имя обновлено');
+      setStatus(t('profile.nameUpdated', { defaultValue: 'Имя обновлено.' }));
+      toast.success(t('profile.nameUpdated', { defaultValue: 'Имя обновлено.' }));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Не удалось обновить имя';
       setStatus(message);
@@ -223,10 +225,10 @@ export default function Profile() {
                     </div>
                   }
                 />
-              </Avatar>
+          </Avatar>
               <button
                 type="button"
-                aria-label="Загрузить новое фото"
+                aria-label={t('profile.updatePhoto')}
                 className="absolute -bottom-2 -right-2 flex items-center justify-center rounded-full bg-primary text-primary-foreground p-2 shadow-lg hover:bg-primary/90 transition disabled:opacity-60"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
@@ -238,10 +240,10 @@ export default function Profile() {
             <div className="flex-1 space-y-1">
               <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-semibold w-fit">
                 <ShieldCheck className="h-4 w-4" />
-                Аккаунт активен
+                {t('profile.accountActive')}
               </div>
-              <h1 className="text-3xl font-bold text-card-foreground">{user.displayName || 'Ваш профиль'}</h1>
-              <p className="text-muted-foreground text-sm md:text-base">Аккаунт: {user.email}</p>
+              <h1 className="text-3xl font-bold text-card-foreground">{user.displayName || t('profile.yourProfile')}</h1>
+              <p className="text-muted-foreground text-sm md:text-base">{t('profile.email')}: {user.email}</p>
             </div>
 
             <div className="flex flex-wrap gap-3">
@@ -252,7 +254,7 @@ export default function Profile() {
                 disabled={uploading}
               >
                 <LogOut className="h-4 w-4" />
-                Выйти
+                {t('profile.logout')}
               </Button>
             </div>
           </div>
@@ -262,32 +264,32 @@ export default function Profile() {
           <div className="lg:col-span-2 bg-card border border-border rounded-2xl shadow-sm p-6 space-y-6">
             <div className="flex items-center gap-2">
               <User2 className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-semibold text-card-foreground">Данные аккаунта</h2>
-            </div>
+              <h2 className="text-xl font-semibold text-card-foreground">{t('profile.yourProfile')}</h2>
+        </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Имя</p>
+          <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">{t('profile.name')}</p>
                   <Input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Введите имя"
+                    placeholder={t('profile.namePlaceholder')}
                     disabled={savingName || uploading}
                   />
                 </div>
                 <Button size="sm" onClick={handleSaveName} disabled={savingName || uploading}>
-                  {savingName ? 'Сохраняем…' : 'Сохранить имя'}
+                  {savingName ? t('profile.saving') : t('profile.saveName')}
                 </Button>
               </div>
 
               <div className="rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Email</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">{t('profile.email')}</p>
                 <p className="text-lg font-semibold text-card-foreground">{user.email}</p>
-              </div>
+          </div>
 
               <div className="rounded-xl border border-border bg-muted/30 p-4 sm:col-span-2">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">UID</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">{t('profile.uid')}</p>
                 <p className="text-sm text-card-foreground break-all">{user.uid}</p>
               </div>
             </div>
@@ -295,11 +297,11 @@ export default function Profile() {
 
           <div className="bg-card border border-border rounded-2xl shadow-sm p-6 space-y-4">
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-card-foreground">Обновить фото</p>
+              <p className="text-sm font-semibold text-card-foreground">{t('profile.updatePhoto')}</p>
               <p className="text-sm text-muted-foreground">
-                Поддерживаются JPG/PNG, размер до 2 МБ. Изображение будет сжато перед загрузкой.
+                {t('profile.uploadHint')}
               </p>
-            </div>
+        </div>
 
             <div
               className="rounded-xl border border-dashed border-border bg-muted/20 p-4 cursor-pointer transition hover:border-primary/60 hover:bg-primary/5"
@@ -313,26 +315,26 @@ export default function Profile() {
                 }
               }}
             >
-              <input
-                type="file"
+          <input
+            type="file"
                 accept="image/png,image/jpeg"
-                onChange={handleFileChange}
-                disabled={uploading}
+            onChange={handleFileChange}
+            disabled={uploading}
                 className="sr-only"
-                ref={fileInputRef}
-                aria-label="Выбрать новое фото"
-              />
+            ref={fileInputRef}
+                aria-label={t('profile.updatePhoto')}
+          />
               <div className="flex items-start gap-3">
                 <div className="flex-1 space-y-2">
-                  <p className="text-sm text-card-foreground">Перетащите файл или нажмите, чтобы выбрать.</p>
-                  <p className="text-xs text-muted-foreground">Максимальный размер 2 МБ.</p>
+                  <p className="text-sm text-card-foreground">{t('profile.selectFile')}</p>
+                  <p className="text-xs text-muted-foreground">{t('profile.maxSize')}</p>
                 </div>
                 <div className="flex items-center gap-2 text-primary font-semibold text-sm">
                   <Camera className="h-4 w-4" />
-                  {uploading ? 'Загрузка...' : 'Выбрать фото'}
+                  {uploading ? t('profile.saving') : t('profile.choosePhoto')}
                 </div>
               </div>
-            </div>
+        </div>
 
             {status && (
               <div className="rounded-xl border border-border bg-muted/30 p-3 text-sm text-card-foreground">

@@ -38,7 +38,14 @@ export async function uploadAvatar(uid: string, file: Blob) {
   const API_KEY = "SUPER_SECRET_KEY_123";
 
   const formData = new FormData();
-  formData.append("file", file);
+
+  const ext = file.type === "image/png" ? "png" : "jpg";
+  const uploadFile =
+    file instanceof File
+      ? file
+      : new File([file], `avatar.${ext}`, { type: file.type || "image/jpeg" });
+
+  formData.append("file", uploadFile);
 
   const res = await fetch(API_URL, {
     method: "POST",
