@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { Menu, X, Compass, Moon, Sun } from "lucide-react";
+import { Menu, X, Compass, Moon, Sun, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -9,11 +9,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useTheme } from "@/components/theme-provider"
+import { useAuth } from "../context/AuthProvider"
 
 export default function Navbar() {
   const { setTheme } = useTheme()
+  const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   return (
     <nav className="bg-background border-b border-border sticky top-0 z-50">
@@ -34,19 +35,20 @@ export default function Navbar() {
             <NavLink to="/jobs" className="text-foreground hover:text-primary transition">
               Jobs
             </NavLink>
+            <NavLink to="/bookmarks" className="text-foreground hover:text-primary transition flex items-center gap-1">
+              <Heart className="w-4 h-4" />
+              Bookmarks
+            </NavLink>
           </div>
 
           {/* Auth Buttons */}
           <div className="hidden md:flex items-center gap-4">
-            {isLoggedIn ? (
+            {user ? (
               <>
-                <NavLink to="/applications">
-                  <Button variant="outline">Applications</Button>
+                <NavLink to="/profile">
+                  <Button variant="outline">Profile</Button>
                 </NavLink>
-                <NavLink to="/messages">
-                  <Button variant="outline">Messages</Button>
-                </NavLink>
-                <Button variant="outline" onClick={() => setIsLoggedIn(false)}>
+                <Button variant="outline" onClick={() => void logout()}>
                   Logout
                 </Button>
               </>
@@ -98,24 +100,23 @@ export default function Navbar() {
             <NavLink to="/jobs" className="block py-2 text-foreground hover:text-primary">
               Jobs
             </NavLink>
+            <NavLink to="/bookmarks" className="block py-2 text-foreground hover:text-primary flex items-center gap-2">
+              <Heart className="w-4 h-4" />
+              Bookmarks
+            </NavLink>
 
             <div className="pt-4 space-y-2">
-              {isLoggedIn ? (
+              {user ? (
                 <>
-                  <NavLink to="/applications" className="block">
+                  <NavLink to="/profile" className="block">
                     <Button variant="outline" className="w-full bg-transparent">
-                      Applications
-                    </Button>
-                  </NavLink>
-                  <NavLink to="/messages" className="block">
-                    <Button variant="outline" className="w-full bg-transparent">
-                      Messages
+                      Profile
                     </Button>
                   </NavLink>
                   <Button
                     variant="outline"
                     className="w-full bg-transparent"
-                    onClick={() => setIsLoggedIn(false)}
+                    onClick={() => void logout()}
                   >
                     Logout
                   </Button>

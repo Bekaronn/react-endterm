@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { Link } from 'react-router-dom';
-import { Search, Filter, MapPin, DollarSign, Briefcase } from 'lucide-react';
+import { Search, Filter, MapPin, DollarSign, Briefcase, Heart } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+
+// Убедитесь, что пути к компонентам верны для вашего проекта
 import Spinner from '../components/Spinner';
 import ErrorBox from '../components/ErrorBox';
+import { useAuth } from '../context/AuthProvider';
 import type { RootState, AppDispatch } from '../store';
 import { fetchJobsThunk, setQuery } from '../features/jobs/jobsSlice';
+import { addFavoriteThunk, removeFavoriteThunk, loadFavoritesThunk } from '../features/favorites/favoritesSlice';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 
 const JOB_TYPE_OPTIONS = [
@@ -267,8 +272,10 @@ const SORT_OPTIONS = [
 
 export default function Items() {
   const dispatch = useDispatch<AppDispatch>();
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const { list, loadingList, errorList, total } = useSelector((state: RootState) => state.jobs);
+  const { jobIds: favoriteIds = [] } = useSelector((state: RootState) => state.favorites);
 
   const [showFilters, setShowFilters] = useState(false);
 
@@ -279,7 +286,10 @@ export default function Items() {
   const initialCompany = searchParams.get('company') ?? '';
   const initialRemote = (searchParams.get('remote') as 'All' | 'true' | 'false' | null) ?? 'All';
   const initialSort = (searchParams.get('sort') as 'newest' | 'oldest' | 'company' | 'title' | null) ?? 'newest';
-  const initialPage = Number.parseInt(searchParams.get('page') ?? '1', 10);
+  
+  // Безопасный парсинг номера страницы
+  const parsedPage = Number.parseInt(searchParams.get('page') ?? '1', 10);
+  const initialPage = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
 
   const [searchInput, setSearchInput] = useState(initialSearch);
   const [selectedType, setSelectedType] = useState(initialType);
@@ -291,22 +301,24 @@ export default function Items() {
   const [selectedSort, setSelectedSort] = useState<'newest' | 'oldest' | 'company' | 'title'>(
     initialSort ?? 'newest',
   );
-  const [currentPage, setCurrentPage] = useState(Number.isFinite(initialPage) && initialPage > 0 ? initialPage : 1);
+  const [currentPage, setCurrentPage] = useState(initialPage);
 
   const debouncedSearch = useDebouncedValue(searchInput, 400);
   const PAGE_SIZE = 10;
 
-  // helper to update URL params consistently
-  function updateParams(updates: Record<string, string | null | undefined>) {
-    const next = new URLSearchParams(searchParams);
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value === undefined || value === null || value === '') next.delete(key);
-      else next.set(key, value);
-    });
-    setSearchParams(next, { replace: true });
-  }
+  // Helper to update URL params consistently
+  const updateParams = (updates: Record<string, string | null | undefined>) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '') next.delete(key);
+        else next.set(key, value);
+      });
+      return next;
+    }, { replace: true });
+  };
 
-  // синхронизация стейтов с URL при навигации назад/вперед
+  // Синхронизация стейтов с URL при навигации (back/forward)
   useEffect(() => {
     const q = searchParams.get('q') ?? '';
     const type = searchParams.get('type') ?? 'All';
@@ -314,7 +326,8 @@ export default function Items() {
     const company = searchParams.get('company') ?? '';
     const remote = (searchParams.get('remote') as 'All' | 'true' | 'false' | null) ?? 'All';
     const sort = (searchParams.get('sort') as 'newest' | 'oldest' | 'company' | 'title' | null) ?? 'newest';
-    const page = Number.parseInt(searchParams.get('page') ?? '1', 10);
+    const pageStr = searchParams.get('page');
+    const page = pageStr ? Number.parseInt(pageStr, 10) : 1;
 
     setSearchInput(q);
     setSelectedType(type);
@@ -325,14 +338,34 @@ export default function Items() {
     setCurrentPage(Number.isFinite(page) && page > 0 ? page : 1);
   }, [searchParams]);
 
-  // дебаунс поиска + запись в URL
+  // Дебаунс поиска + запись в URL
   useEffect(() => {
     dispatch(setQuery(debouncedSearch));
-    updateParams({ q: debouncedSearch || null, page: '1' });
-    setCurrentPage(1);
-  }, [debouncedSearch, dispatch]);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (debouncedSearch) {
+        next.set('q', debouncedSearch);
+      } else {
+        next.delete('q');
+      }
+      // Сброс страницы при новом поиске
+      if (prev.get('q') !== debouncedSearch) {
+        next.set('page', '1');
+      }
+      return next;
+    }, { replace: true });
+    
+    if (debouncedSearch !== searchParams.get('q')) {
+      setCurrentPage(1);
+    }
+  }, [debouncedSearch, dispatch, setSearchParams]);
 
-  // запрос вакансий
+  // Загрузка избранного
+  useEffect(() => {
+    dispatch(loadFavoritesThunk({ uid: user?.uid ?? null }));
+  }, [dispatch, user?.uid]);
+
+  // Запрос вакансий
   useEffect(() => {
     dispatch(
       fetchJobsThunk({
@@ -348,6 +381,23 @@ export default function Items() {
     );
   }, [dispatch, debouncedSearch, currentPage, selectedTag, selectedType, companyFilter, selectedRemote, selectedSort]);
 
+  const handleToggleFavorite = async (e: React.MouseEvent, jobId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const isFavorite = favoriteIds.includes(jobId);
+    try {
+      if (isFavorite) {
+        await dispatch(removeFavoriteThunk({ uid: user?.uid ?? null, jobId })).unwrap();
+        toast.success('Removed from bookmarks');
+      } else {
+        await dispatch(addFavoriteThunk({ uid: user?.uid ?? null, jobId })).unwrap();
+        toast.success('Added to bookmarks');
+      }
+    } catch (err) {
+      toast.error(isFavorite ? 'Failed to remove bookmark' : 'Failed to add bookmark');
+    }
+  };
+
   function onChange(e: ChangeEvent<HTMLInputElement>) {
     const v = e.target.value;
     setSearchInput(v);
@@ -355,40 +405,55 @@ export default function Items() {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  // --- Логика пагинации ---
   const paginationRange = useMemo(() => {
-    if (totalPages <= 5) {
-      return Array.from({ length: totalPages }, (_, idx) => idx + 1);
+    const pages: Array<number | 'ellipsis'> = [];
+
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
     }
 
-    const range: Array<number | 'ellipsis'> = [1];
-    const start = Math.max(2, currentPage - 1);
-    const end = Math.min(totalPages - 1, currentPage + 1);
+    const left = Math.max(2, currentPage - 1);
+    const right = Math.min(totalPages - 1, currentPage + 1);
 
-    if (start > 2) range.push('ellipsis');
+    pages.push(1);
 
-    for (let page = start; page <= end; page += 1) {
-      range.push(page);
+    if (left > 2) {
+      pages.push('ellipsis');
     }
 
-    if (end < totalPages - 1) range.push('ellipsis');
+    for (let page = left; page <= right; page++) {
+      pages.push(page);
+    }
 
-    range.push(totalPages);
-    return range;
+    if (right < totalPages - 1) {
+      pages.push('ellipsis');
+    }
+
+    pages.push(totalPages);
+
+    return pages;
   }, [currentPage, totalPages]);
 
+  // Проверка: если текущая страница > totalPages (например, после фильтрации список уменьшился)
   useEffect(() => {
-    if (currentPage > totalPages) {
+    if (totalPages > 0 && currentPage > totalPages) {
       setCurrentPage(totalPages);
       updateParams({ page: String(totalPages) });
     }
-  }, [currentPage, totalPages]);
+  }, [currentPage, totalPages, setSearchParams]);
 
   function handlePageChange(nextPage: number) {
-    const safe = Math.max(1, Math.min(totalPages, nextPage));
-    setCurrentPage(safe);
-    updateParams({ page: String(safe) });
+    const safePage = Math.max(1, Math.min(totalPages, nextPage));
+    
+    if (safePage === currentPage) return;
+
+    setCurrentPage(safePage); // Оптимистичное обновление UI
+    updateParams({ page: String(safePage) });
+    window.scrollTo({ top: 0, behavior: 'smooth' }); // Скролл наверх
   }
 
+  // --- Обработчики фильтров ---
   function handleTypeChange(value: string) {
     setSelectedType(value);
     setCurrentPage(1);
@@ -451,28 +516,29 @@ export default function Items() {
           </button>
           <div className="flex items-center gap-2 text-sm ml-auto">
             <span className="text-muted-foreground">Sort by:</span>
-              <select
-                value={selectedSort}
-                onChange={(e) => handleSortChange(e.target.value as typeof selectedSort)}
-                className="px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                {SORT_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+            <select
+              value={selectedSort}
+              onChange={(e) => handleSortChange(e.target.value as typeof selectedSort)}
+              className="px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              {SORT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
         <div className="flex gap-8">
+          {/* Desktop Filters */}
           <div className="hidden md:block w-64 flex-shrink-0">
             <div className="bg-card border border-border rounded-lg p-6 space-y-6">
               <div>
                 <h3 className="font-semibold text-card-foreground mb-4">Job Type</h3>
                 <select
-                value={selectedType}
-                onChange={(e) => handleTypeChange(e.target.value)}
+                  value={selectedType}
+                  onChange={(e) => handleTypeChange(e.target.value)}
                   className="w-full px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   {JOB_TYPE_OPTIONS.map((type) => (
@@ -487,8 +553,8 @@ export default function Items() {
                 <h3 className="font-semibold text-card-foreground mb-4">Company</h3>
                 <input
                   type="text"
-                value={companyFilter}
-                onChange={(e) => handleCompanyChange(e.target.value)}
+                  value={companyFilter}
+                  onChange={(e) => handleCompanyChange(e.target.value)}
                   placeholder="e.g. We Love X GmbH"
                   className="w-full px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
@@ -520,8 +586,8 @@ export default function Items() {
               <div className="border-t border-border pt-4">
                 <h3 className="font-semibold text-card-foreground mb-4">Tag</h3>
                 <select
-                value={selectedTag}
-                onChange={(e) => handleTagChange(e.target.value)}
+                  value={selectedTag}
+                  onChange={(e) => handleTagChange(e.target.value)}
                   className="w-full px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   {TAG_OPTIONS.map((tag) => (
@@ -534,6 +600,7 @@ export default function Items() {
             </div>
           </div>
 
+          {/* Mobile Filters */}
           {showFilters && (
             <div className="md:hidden mb-6 bg-card border border-border rounded-lg p-6 space-y-6 w-full">
               <div>
@@ -650,12 +717,21 @@ export default function Items() {
                                 </div>
                               </div>
                             </div>
-                            <div className="text-right flex-shrink-0">
+                            <div className="text-right flex-shrink-0 flex flex-col items-end gap-2">
                               {job.remote !== undefined && (
                                 <span className="inline-block px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold">
                                   {job.remote ? 'Remote' : 'On-site'}
                                 </span>
                               )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => handleToggleFavorite(e, job.slug)}
+                                className={`${favoriteIds.includes(job.slug) ? 'text-red-500' : 'text-muted-foreground'}`}
+                                aria-label={favoriteIds.includes(job.slug) ? 'Remove from bookmarks' : 'Add to bookmarks'}
+                              >
+                                <Heart className={`w-5 h-5 ${favoriteIds.includes(job.slug) ? 'fill-current' : ''}`} />
+                              </Button>
                             </div>
                           </div>
                         </div>
@@ -669,6 +745,8 @@ export default function Items() {
                     </p>
                   </div>
                 )}
+                
+                {/* Исправленная пагинация */}
                 {total > PAGE_SIZE && (
                   <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-border">
                     <div className="text-sm text-muted-foreground">
@@ -676,24 +754,26 @@ export default function Items() {
                     </div>
                     <div className="flex items-center gap-2">
                       <button
-                        className="px-3 py-1 rounded-md border border-border text-sm disabled:opacity-50"
+                        className="px-3 py-1 rounded-md border border-border text-sm disabled:opacity-50 hover:bg-muted"
                         onClick={() => handlePageChange(currentPage - 1)}
                         disabled={currentPage === 1}
                       >
                         Previous
                       </button>
+                      
                       {paginationRange.map((item, idx) =>
                         item === 'ellipsis' ? (
-                          <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">
+                          // Используем idx для уникального ключа многоточий
+                          <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground select-none">
                             ...
                           </span>
                         ) : (
                           <button
                             key={item}
-                            className={`w-9 h-9 rounded-md border text-sm transition ${
+                            className={`w-9 h-9 rounded-md border text-sm transition flex items-center justify-center ${
                               item === currentPage
                                 ? 'bg-primary text-primary-foreground border-primary'
-                                : 'border-border hover:border-primary hover:text-primary'
+                                : 'border-border hover:border-primary hover:text-primary hover:bg-muted'
                             }`}
                             onClick={() => handlePageChange(item)}
                           >
@@ -701,8 +781,9 @@ export default function Items() {
                           </button>
                         ),
                       )}
+                      
                       <button
-                        className="px-3 py-1 rounded-md border border-border text-sm disabled:opacity-50"
+                        className="px-3 py-1 rounded-md border border-border text-sm disabled:opacity-50 hover:bg-muted"
                         onClick={() => handlePageChange(currentPage + 1)}
                         disabled={currentPage === totalPages}
                       >
@@ -715,8 +796,7 @@ export default function Items() {
             )}
           </div>
         </div>
-      </div>
+      </div>   
     </main>
   );
 }
-
