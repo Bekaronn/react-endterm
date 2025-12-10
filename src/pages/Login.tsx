@@ -1,10 +1,8 @@
 import { useState, type FormEvent } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { FirebaseError } from 'firebase/app';
-import { auth } from '../firebase';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { login, getAuthErrorMessage } from '../services/authService';
 
 export default function Login() {
   const nav = useNavigate();
@@ -15,30 +13,16 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const normalizeError = (code: string) => {
-    switch (code) {
-      case 'auth/invalid-credential':
-      case 'auth/user-not-found':
-      case 'auth/wrong-password':
-        return 'Incorrect email or password.';
-      case 'auth/too-many-requests':
-        return 'Too many attempts. Try again later.';
-      default:
-        return 'Login failed. Try again.';
-    }
-  };
-
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+      await login(email, password);
       nav('/profile');
     } catch (err) {
-      const code = err instanceof FirebaseError ? err.code : 'unknown';
-      setError(normalizeError(code));
+      setError(getAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }

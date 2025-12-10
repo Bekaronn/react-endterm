@@ -43,8 +43,8 @@ export default function Navbar() {
               <NavLink to="/jobs" className="text-foreground hover:text-primary transition">
                 Jobs
               </NavLink>
-              <NavLink to="/favorites" className="text-foreground hover:text-primary transition">
-                Favorites
+              <NavLink to="/bookmarks" className="text-foreground hover:text-primary transition">
+                Bookmarks
               </NavLink>
             </div>
             <DropdownMenu>
@@ -122,8 +122,8 @@ export default function Navbar() {
               Jobs
             </NavLink>
 
-            <NavLink to="/favorites" className="block py-2 text-foreground hover:text-primary">
-              Favorites
+            <NavLink to="/bookmarks" className="block py-2 text-foreground hover:text-primary">
+              Bookmarks
             </NavLink>
 
             <div className="flex items-center gap-2 px-2 pt-1">

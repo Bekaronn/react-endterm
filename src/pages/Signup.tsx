@@ -1,10 +1,8 @@
 import { useState, type FormEvent } from 'react';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { FirebaseError } from 'firebase/app';
-import { auth } from '../firebase';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { User, Mail, Lock, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { register, getSignupErrorMessage } from '../services/authService';
 
 export default function Signup() {
   const nav = useNavigate();
@@ -22,21 +20,6 @@ export default function Signup() {
     password?: string[];
     confirmPassword?: string;
   }>({ password: [] });
-
-  const normalizeError = (code: string) => {
-    switch (code) {
-      case 'auth/email-already-in-use':
-        return 'This email is already registered.';
-      case 'auth/invalid-email':
-        return 'Invalid email format.';
-      case 'auth/weak-password':
-        return 'Password is too weak.';
-      case 'auth/missing-email':
-        return 'Email is required.';
-      default:
-        return 'Registration failed. Try again.';
-    }
-  };
 
   const validateForm = () => {
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -94,19 +77,10 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email.trim(),
-        password,
-      );
-      await updateProfile(userCredential.user, {
-        displayName: name,
-      });
-
+      await register(name, email, password);
       nav('/profile');
     } catch (err) {
-      const code = err instanceof FirebaseError ? err.code : 'unknown';
-      setFormError(normalizeError(code));
+      setFormError(getSignupErrorMessage(err));
     } finally {
       setLoading(false);
     }
