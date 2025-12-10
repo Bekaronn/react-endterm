@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Navigate } from 'react-router-dom';
 import { updateProfile } from 'firebase/auth';
+import { useDispatch } from 'react-redux';
 import { Camera, LogOut, ShieldCheck, User2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -8,9 +9,12 @@ import { Button } from '@/components/ui/button';
 import Spinner from '../components/Spinner';
 import { useAuth } from '../context/AuthProvider';
 import { getUserProfile, saveUserProfile, uploadAvatar } from '../services/profileService';
+import { setProfile } from '../features/profile/profileSlice';
+import type { AppDispatch } from '../store';
 
 export default function Profile() {
   const { user, loading, logout } = useAuth();
+  const dispatch = useDispatch<AppDispatch>();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -18,12 +22,31 @@ export default function Profile() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      dispatch(setProfile(null));
+      return;
+    }
     setPhotoUrl(user.photoURL ?? null);
+    dispatch(
+      setProfile({
+        displayName: user.displayName ?? null,
+        email: user.email ?? null,
+        photoURL: user.photoURL ?? null,
+        uid: user.uid,
+      }),
+    );
     void (async () => {
       const profile = await getUserProfile(user.uid);
       if (profile?.photoURL) {
         setPhotoUrl(profile.photoURL);
+        dispatch(
+          setProfile({
+            displayName: profile.displayName ?? user.displayName ?? null,
+            email: user.email ?? null,
+            photoURL: profile.photoURL ?? user.photoURL ?? null,
+            uid: user.uid,
+          }),
+        );
       }
     })();
     return () => {
@@ -80,12 +103,14 @@ export default function Profile() {
     if (!file || !user) return;
     if (!file.type.startsWith('image/')) {
       setStatus('Пожалуйста, выберите изображение (jpg или png).');
+      toast.error('Пожалуйста, выберите изображение (jpg или png).');
       return;
     }
 
     const MAX_SIZE = 2 * 1024 * 1024; // 2 MB
     if (file.size > MAX_SIZE) {
       setStatus('Размер файла не должен превышать 2 МБ.');
+      toast.error('Размер файла не должен превышать 2 МБ.');
       return;
     }
 
@@ -100,10 +125,19 @@ export default function Profile() {
       await updateProfile(user, { photoURL: downloadUrl });
       setPhotoUrl(downloadUrl);
       setStatus('Фото обновлено.');
+      dispatch(
+        setProfile({
+          displayName: user.displayName ?? null,
+          email: user.email ?? null,
+          photoURL: downloadUrl ?? null,
+          uid: user.uid,
+        }),
+      );
       toast.success('Фото профиля обновлено');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Не удалось загрузить фото';
       setStatus(message);
+      toast.error(message);
     } finally {
       setUploading(false);
     }

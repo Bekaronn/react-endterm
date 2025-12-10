@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import { Menu, X, Compass, Moon, Sun } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button"
@@ -11,11 +12,19 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useTheme } from "@/components/theme-provider"
 import { useAuth } from "../context/AuthProvider";
+import { setProfile } from "../features/profile/profileSlice";
+import type { RootState, AppDispatch } from "../store";
 
 export default function Navbar() {
   const { setTheme } = useTheme()
   const [isOpen, setIsOpen] = useState(false);
   const { user, loading, logout } = useAuth();
+  const dispatch = useDispatch<AppDispatch>();
+  const profile = useSelector((state: RootState) => state.profile.data);
+
+  const displayName = profile?.displayName ?? user?.displayName ?? user?.email ?? "User";
+  const email = profile?.email ?? user?.email ?? "";
+  const photoURL = profile?.photoURL ?? user?.photoURL ?? undefined;
 
   return (
     <nav className="bg-background border-b border-border sticky top-0 z-50">
@@ -63,11 +72,11 @@ export default function Navbar() {
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-2 rounded-full border border-border px-2 py-1 hover:border-primary transition">
                     <Avatar className="h-9 w-9">
-                      <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName ?? user.email ?? "User"} />
-                      <AvatarFallback>{user.email?.[0]?.toUpperCase() ?? "U"}</AvatarFallback>
+                      <AvatarImage src={photoURL} alt={displayName} />
+                      <AvatarFallback>{email?.[0]?.toUpperCase() ?? "U"}</AvatarFallback>
                     </Avatar>
                     <span className="text-sm font-semibold text-foreground hidden lg:inline">
-                      {user.displayName || user.email}
+                      {displayName}
                     </span>
                   </button>
                 </DropdownMenuTrigger>
@@ -75,7 +84,14 @@ export default function Navbar() {
                   <DropdownMenuItem asChild>
                     <NavLink to="/profile">Profile</NavLink>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => void logout()}>Logout</DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      void logout();
+                      dispatch(setProfile(null));
+                    }}
+                  >
+                    Logout
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
@@ -119,18 +135,21 @@ export default function Navbar() {
                 <>
                   <NavLink to="/profile" className="flex items-center gap-3 px-2">
                     <Avatar className="h-9 w-9">
-                      <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName ?? user.email ?? "User"} />
-                      <AvatarFallback>{user.email?.[0]?.toUpperCase() ?? "U"}</AvatarFallback>
+                      <AvatarImage src={photoURL} alt={displayName} />
+                      <AvatarFallback>{email?.[0]?.toUpperCase() ?? "U"}</AvatarFallback>
                     </Avatar>
                     <div className="text-left">
-                      <p className="text-sm font-semibold text-foreground">{user.displayName || user.email}</p>
-                      <p className="text-xs text-muted-foreground">Profile</p>
+                      <p className="text-sm font-semibold text-foreground">{displayName}</p>
+                      <p className="text-xs text-muted-foreground">{email || 'Profile'}</p>
                     </div>
                   </NavLink>
                   <Button
                     variant="outline"
                     className="w-full bg-transparent"
-                    onClick={() => void logout()}
+                    onClick={() => {
+                      void logout();
+                      dispatch(setProfile(null));
+                    }}
                     disabled={loading}
                   >
                     Logout
