@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { MapPin, DollarSign, Briefcase, Calendar, ArrowLeft, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import Spinner from '../components/Spinner';
 import ErrorBox from '../components/ErrorBox';
 import { fetchJobBySlugThunk } from '../features/jobs/jobsSlice';
@@ -44,7 +45,7 @@ export default function ItemDetails() {
   }
 
   const typeLabel = job.job_types?.[0] ?? 'Not specified';
-  const salaryLabel = 'Not specified';
+  const salaryLabel = job.salary || 'Not specified';
   const postedLabel =
     job.updated_at && typeof job.updated_at === 'string'
       ? job.updated_at
@@ -52,13 +53,44 @@ export default function ItemDetails() {
 
   const handleShare = async () => {
     const url = window.location.href;
-    try {
-      await navigator.clipboard.writeText(url);
-      // simple feedback
-      alert('Link copied to clipboard');
-    } catch {
-      alert('Unable to copy link');
+    const shareData = {
+      title: job.title,
+      text: `Check out ${job.title} at ${job.company_name}`,
+      url,
+    };
+
+    const tryCopy = async () => {
+      if (!navigator.clipboard?.writeText) {
+        toast.info('Sharing is not supported in this browser');
+        return false;
+      }
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success('Link copied to clipboard');
+        return true;
+      } catch {
+        toast.error('Unable to copy link');
+        return false;
+      }
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        // Even if share succeeds, also copy for convenience.
+        await tryCopy();
+        return;
+      } catch (error) {
+        // Ignore user cancellations, surface real failures
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          await tryCopy();
+          return;
+        }
+        toast.error('Unable to open share options');
+      }
     }
+
+    await tryCopy();
   };
 
   return (

@@ -1,9 +1,10 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import { fetchJobs, fetchJobBySlug, type Job } from '../../services/jobsService';
+import { fetchJobs, fetchJobBySlug, type Job, type PaginatedJobs } from '../../services/jobsService';
 
 interface JobsState {
   list: Job[];
+  total: number;
   selectedJob: Job | null;
   loadingList: boolean;
   loadingJob: boolean;
@@ -14,6 +15,7 @@ interface JobsState {
 
 const initialState: JobsState = {
   list: [],
+  total: 0,
   selectedJob: null,
   loadingList: false,
   loadingJob: false,
@@ -23,12 +25,20 @@ const initialState: JobsState = {
 };
 
 export const fetchJobsThunk = createAsyncThunk<
-  Job[],
-  { query: string },
+  PaginatedJobs,
+  {
+    query: string;
+    page: number;
+    pageSize: number;
+    typeFilter: string;
+    companyFilter: string;
+    remoteFilter: 'All' | 'true' | 'false';
+    tagFilter: string;
+  },
   { rejectValue: string }
->('jobs/fetchJobs', async ({ query }, { rejectWithValue }) => {
+>('jobs/fetchJobs', async (params, { rejectWithValue }) => {
   try {
-    return await fetchJobs(query);
+    return await fetchJobs(params);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     return rejectWithValue(message);
@@ -64,7 +74,8 @@ const jobsSlice = createSlice({
       })
       .addCase(fetchJobsThunk.fulfilled, (state, action) => {
         state.loadingList = false;
-        state.list = action.payload;
+        state.list = action.payload.jobs;
+        state.total = action.payload.total;
       })
       .addCase(fetchJobsThunk.rejected, (state, action) => {
         state.loadingList = false;

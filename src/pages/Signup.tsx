@@ -4,7 +4,7 @@ import { FirebaseError } from 'firebase/app';
 import { auth } from '../firebase';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { User, Mail, Lock, CheckCircle } from 'lucide-react';
+import { User, Mail, Lock, CheckCircle, Eye, EyeOff } from 'lucide-react';
 
 export default function Signup() {
   const nav = useNavigate();
@@ -12,8 +12,16 @@ export default function Signup() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
+  const [formError, setFormError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [errors, setErrors] = useState<{
+    name?: string;
+    email?: string;
+    password?: string[];
+    confirmPassword?: string;
+  }>({ password: [] });
 
   const normalizeError = (code: string) => {
     switch (code) {
@@ -32,30 +40,54 @@ export default function Signup() {
 
   const validateForm = () => {
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const passwordPattern = /^(?=.*[0-9])(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/;
+    const newErrors: {
+      name?: string;
+      email?: string;
+      password?: string[];
+      confirmPassword?: string;
+    } = { password: [] };
 
-    if (!name.trim() || !email.trim() || !password || !confirmPassword) {
-      return 'Please fill in all fields.';
+    if (email && !emailPattern.test(email.trim())) {
+      newErrors.email = 'Please enter a valid email address.';
     }
-    if (!emailPattern.test(email.trim())) {
-      return 'Please enter a valid email address.';
+
+    if (password) {
+      if (password.length < 8) {
+        newErrors.password?.push('At least 8 characters.');
+      }
+      if (!/\d/.test(password)) {
+        newErrors.password?.push('Include at least one number.');
+      }
+      if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
+        newErrors.password?.push('Include at least one special character.');
+      }
     }
-    if (!passwordPattern.test(password)) {
-      return 'Password must be 8+ chars with a number and special character.';
+
+    if (confirmPassword && password !== confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match.';
     }
-    if (password !== confirmPassword) {
-      return 'Passwords do not match.';
+
+    if (newErrors.password && newErrors.password.length === 0) {
+      delete newErrors.password;
     }
-    return '';
+
+    setErrors(newErrors);
+
+    return (
+      !newErrors.name &&
+      !newErrors.email &&
+      !newErrors.confirmPassword &&
+      !newErrors.password
+    );
   };
 
   const handleSignup = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError('');
+    setFormError('');
+    setErrors({ password: [] });
 
-    const validationMessage = validateForm();
-    if (validationMessage) {
-      setError(validationMessage);
+    const isValid = validateForm();
+    if (!isValid) {
       return;
     }
 
@@ -74,7 +106,7 @@ export default function Signup() {
       nav('/profile');
     } catch (err) {
       const code = err instanceof FirebaseError ? err.code : 'unknown';
-      setError(normalizeError(code));
+      setFormError(normalizeError(code));
     } finally {
       setLoading(false);
     }
@@ -104,8 +136,12 @@ export default function Signup() {
                   onChange={(e) => setName(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                   placeholder="John Doe"
+                  required
                 />
               </div>
+              {errors.name && (
+                <p className="text-sm text-destructive mt-2">{errors.name}</p>
+              )}
             </div>
 
             <div>
@@ -121,8 +157,12 @@ export default function Signup() {
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                   placeholder="you@example.com"
+                  required
                 />
               </div>
+              {errors.email && (
+                <p className="text-sm text-destructive mt-2">{errors.email}</p>
+              )}
             </div>
 
             <div>
@@ -133,16 +173,32 @@ export default function Signup() {
                 <Lock className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
                 <input
                   id="password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                   placeholder="••••••••"
+                  required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 Must be 8+ characters, include a number and special character.
               </p>
+              {errors.password && (
+                <ul className="mt-2 text-sm text-destructive space-y-1 list-disc list-inside">
+                  {errors.password.map((msg, idx) => (
+                    <li key={idx}>{msg}</li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <div>
@@ -153,18 +209,34 @@ export default function Signup() {
                 <Lock className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
                 <input
                   id="confirmPassword"
-                  type="password"
+                  type={showConfirmPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                   placeholder="••••••••"
+                  required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
+                  aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
               </div>
+              {errors.confirmPassword && (
+                <p className="text-sm text-destructive mt-2">{errors.confirmPassword}</p>
+              )}
             </div>
 
-            {error && (
+            {formError && (
               <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-destructive text-sm">
-                {error}
+                {formError}
               </div>
             )}
 

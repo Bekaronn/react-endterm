@@ -8,20 +8,283 @@ import ErrorBox from '../components/ErrorBox';
 import type { RootState, AppDispatch } from '../store';
 import { fetchJobsThunk, setQuery } from '../features/jobs/jobsSlice';
 
+const JOB_TYPE_OPTIONS = [
+  'All',
+  'Apprenticeship',
+  'Contract',
+  'Dual studies',
+  'Experienced',
+  'Freelance',
+  'Full-time',
+  'Full-time fixed-term',
+  'Full-time permanent',
+  'Interim',
+  'Internship',
+  'Junior',
+  'Management',
+  'Manager',
+  'Part-time',
+  'Senior',
+  'Side',
+  'Team Lead',
+  'Thesis',
+  'Voluntary',
+  'Working student',
+  'berufseinstieg',
+  'berufserfahren',
+  'entry',
+  'experienced',
+  'geschäftsleitung',
+  'hilfstätigkeit / student',
+  'manager',
+  'mid',
+  'no experience required / student',
+  'professional / experienced',
+  'teamleitung',
+];
+
+const TAG_OPTIONS = [
+  'All',
+  'AI',
+  'Account Management',
+  'Accounting',
+  'Accounts Receivable',
+  'Administration',
+  'Advisory',
+  'Affiliate',
+  'Agency',
+  'Amazon',
+  'Analysis',
+  'Analytics',
+  'Applications Administration',
+  'Architecture',
+  'Artificial Intelligence',
+  'Asset',
+  'Assistant',
+  'Audit',
+  'Auditor',
+  'Automation',
+  'Automation Engineering',
+  'Automotive Engineering',
+  'B2B',
+  'Backend',
+  'Banking',
+  'Brand Management',
+  'Branding',
+  'Building',
+  'Business',
+  'Business Analysis',
+  'Business Consulting',
+  'Business Development',
+  'Business Intelligence',
+  'Business Operations',
+  'CRM',
+  'CX',
+  'Campaign Management',
+  'Category Management',
+  'Chemistry',
+  'Chief Executives',
+  'Cloud',
+  'Coaching',
+  'Cobol',
+  'Community',
+  'Compliance',
+  'Construction',
+  'Consulting',
+  'Content',
+  'Content Creation',
+  'Controlling',
+  'Copywriting',
+  'Corporate Communication',
+  'Creative',
+  'Creator',
+  'Customer Service',
+  'Customer Success',
+  'Data',
+  'Data Center',
+  'Data Engineer',
+  'Data Processing',
+  'Data Protection',
+  'Data Scientist',
+  'Database',
+  'Design',
+  'DevOps',
+  'Development',
+  'Digital Media',
+  'Direct Marketing',
+  'Directors',
+  'Distribution Marketing',
+  'Driver',
+  'E-Commerce',
+  'ERP',
+  'Education',
+  'Electrical',
+  'Electronics',
+  'Embedded Systems',
+  'Engagement',
+  'Engineering',
+  'Entrepreneurship',
+  'Executive Assistant',
+  'Facility Management',
+  'Fashion',
+  'Field Sales',
+  'Field Service',
+  'Finance',
+  'Firmware Development',
+  'Fitness',
+  'Fonds Management',
+  'Frontend',
+  'Full Stack',
+  'Gastronomy',
+  'Google Ads',
+  'Graphic Design',
+  'Growth',
+  'HR',
+  'Hardware',
+  'Hardware Design',
+  'Health',
+  'Healthcare',
+  'Healthtech',
+  'Helpdesk',
+  'IT',
+  'IT Architecture',
+  'IT Security',
+  'IT Support',
+  'Industrial Design',
+  'Influencer',
+  'Influencer Marketing',
+  'Information Systems',
+  'Information technology',
+  'Infrastructure',
+  'Inspection',
+  'Internet and software',
+  'Java',
+  'Junior',
+  'Key Account Management',
+  'Labor Law',
+  'Lead',
+  'Leadership',
+  'Legal',
+  'Logistics',
+  'M&A',
+  'Machine Learning',
+  'Maintenance',
+  'Management',
+  'Marketing',
+  'Marketing Assistant',
+  'Marketing Manager',
+  'Marketing and Communication',
+  'Materials Administration and Logistics',
+  'Mathematics',
+  'Mechanics',
+  'Media',
+  'Medical Technology',
+  'Mergers & Acquisitions',
+  'Microsoft',
+  'Microsoft 365',
+  'Mobile',
+  'Network',
+  'Network Engineering',
+  'Nutrition',
+  'Online Marketing',
+  'Operations',
+  'PPC',
+  'Payroll',
+  'Personnel Specialist',
+  'Pest Control',
+  'Pharma',
+  'Physics',
+  'Planning',
+  'Power Engineering and Environmental Engineering',
+  'Private Banking',
+  'Process Engineering',
+  'Process Management',
+  'Product Design',
+  'Product Management',
+  'Production',
+  'Programmatic',
+  'Project Management',
+  'Public Relations',
+  'Public Sector',
+  'Purchasing',
+  'Python',
+  'Quality Assurance',
+  'Quality Management',
+  'R&D',
+  'Real Estate',
+  'Recruiting',
+  'Recruitment and Selection',
+  'Remote',
+  'Research',
+  'Retail',
+  'Retention',
+  'SAP',
+  'SAP/ERP Consulting',
+  'SEA',
+  'SEO',
+  'Safety Services Engineering',
+  'Sales',
+  'Sales Engineer',
+  'Screen and Web Design',
+  'Security',
+  'Service Management',
+  'Social Media',
+  'Social Media Manager',
+  'Software Development',
+  'Strategic Marketing',
+  'Strategy',
+  'Supply',
+  'Support',
+  'System Administration',
+  'System Management',
+  'System and Network Administration',
+  'Talent Management',
+  'Tax',
+  'Team Leader',
+  'Technical Documentation',
+  'Technology',
+  'Telecommunications',
+  'Thesis',
+  'Trade Marketing',
+  'Trading',
+  'Training',
+  'Video',
+  'Video Editing',
+  'Web Development',
+  "bachelor's degree",
+  'high school coursework',
+  'professional',
+  'vocational',
+];
+
 export default function Items() {
   const dispatch = useDispatch<AppDispatch>();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const q = searchParams.get('q') ?? '';
 
-  const { list, loadingList, errorList } = useSelector((state: RootState) => state.jobs);
+  const { list, loadingList, errorList, total } = useSelector((state: RootState) => state.jobs);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedType, setSelectedType] = useState('All');
-  const [selectedLevel, setSelectedLevel] = useState('All');
+  const [selectedTag, setSelectedTag] = useState('All');
+  const [companyFilter, setCompanyFilter] = useState('');
+  const [selectedRemote, setSelectedRemote] = useState<'All' | 'true' | 'false'>('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   useEffect(() => {
-    dispatch(fetchJobsThunk({ query: q }));
-  }, [dispatch, q]);
+    dispatch(
+      fetchJobsThunk({
+        query: q,
+        page: currentPage,
+        pageSize: PAGE_SIZE,
+        typeFilter: selectedType,
+        companyFilter,
+        remoteFilter: selectedRemote,
+        tagFilter: selectedTag,
+      }),
+    );
+  }, [dispatch, q, currentPage, selectedTag, selectedType, companyFilter, selectedRemote]);
 
   function onChange(e: ChangeEvent<HTMLInputElement>) {
     const v = e.target.value;
@@ -31,22 +294,38 @@ export default function Items() {
     else setSearchParams({});
   }
 
-  const filteredJobs = useMemo(() => {
-    return list.filter((job) => {
-      const type = (job.job_types?.[0] ?? 'All').toLowerCase();
-      const levelFromTags =
-        job.tags?.find((tag) => ['junior', 'mid', 'senior'].includes(tag.toLowerCase())) ??
-        'All';
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedTag, selectedType, q, companyFilter, selectedRemote]);
 
-      const typeMatches =
-        selectedType === 'All' || type === selectedType.toLowerCase();
-      const levelMatches =
-        selectedLevel === 'All' ||
-        levelFromTags.toLowerCase() === selectedLevel.toLowerCase();
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-      return typeMatches && levelMatches;
-    });
-  }, [list, selectedLevel, selectedType]);
+  const paginationRange = useMemo(() => {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, idx) => idx + 1);
+    }
+
+    const range: Array<number | 'ellipsis'> = [1];
+    const start = Math.max(2, currentPage - 1);
+    const end = Math.min(totalPages - 1, currentPage + 1);
+
+    if (start > 2) range.push('ellipsis');
+
+    for (let page = start; page <= end; page += 1) {
+      range.push(page);
+    }
+
+    if (end < totalPages - 1) range.push('ellipsis');
+
+    range.push(totalPages);
+    return range;
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   return (
     <main className="min-h-screen bg-background py-8 px-4">
@@ -85,40 +364,66 @@ export default function Items() {
             <div className="bg-card border border-border rounded-lg p-6 space-y-6">
               <div>
                 <h3 className="font-semibold text-card-foreground mb-4">Job Type</h3>
+                <select
+                  value={selectedType}
+                  onChange={(e) => setSelectedType(e.target.value)}
+                  className="w-full px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  {JOB_TYPE_OPTIONS.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="border-t border-border pt-4">
+                <h3 className="font-semibold text-card-foreground mb-4">Company</h3>
+                <input
+                  type="text"
+                  value={companyFilter}
+                  onChange={(e) => setCompanyFilter(e.target.value)}
+                  placeholder="e.g. We Love X GmbH"
+                  className="w-full px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+
+              <div className="border-t border-border pt-4">
+                <h3 className="font-semibold text-card-foreground mb-4">Remote</h3>
                 <div className="space-y-2">
-                  {['All', 'Full-time', 'Part-time', 'Contract'].map((type) => (
-                    <label key={type} className="flex items-center gap-2 cursor-pointer">
+                  {[
+                    { label: 'All', value: 'All' },
+                    { label: 'Remote', value: 'true' },
+                    { label: 'On-site', value: 'false' },
+                  ].map((item) => (
+                    <label key={item.value} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="radio"
-                        name="type"
-                        value={type}
-                        checked={selectedType === type}
-                        onChange={(e) => setSelectedType(e.target.value)}
+                        name="remote"
+                        value={item.value}
+                        checked={selectedRemote === item.value}
+                        onChange={(e) => setSelectedRemote(e.target.value as 'All' | 'true' | 'false')}
                         className="w-4 h-4"
                       />
-                      <span className="text-sm text-muted-foreground">{type}</span>
+                      <span className="text-sm text-muted-foreground">{item.label}</span>
                     </label>
                   ))}
                 </div>
               </div>
 
               <div className="border-t border-border pt-4">
-                <h3 className="font-semibold text-card-foreground mb-4">Experience Level</h3>
-                <div className="space-y-2">
-                  {['All', 'Junior', 'Mid-level', 'Senior'].map((level) => (
-                    <label key={level} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="level"
-                        value={level}
-                        checked={selectedLevel === level}
-                        onChange={(e) => setSelectedLevel(e.target.value)}
-                        className="w-4 h-4"
-                      />
-                      <span className="text-sm text-muted-foreground">{level}</span>
-                    </label>
+                <h3 className="font-semibold text-card-foreground mb-4">Tag</h3>
+                <select
+                  value={selectedTag}
+                  onChange={(e) => setSelectedTag(e.target.value)}
+                  className="w-full px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  {TAG_OPTIONS.map((tag) => (
+                    <option key={tag} value={tag}>
+                      {tag}
+                    </option>
                   ))}
-                </div>
+                </select>
               </div>
             </div>
           </div>
@@ -127,40 +432,66 @@ export default function Items() {
             <div className="md:hidden mb-6 bg-card border border-border rounded-lg p-6 space-y-6 w-full">
               <div>
                 <h3 className="font-semibold text-card-foreground mb-4">Job Type</h3>
+                <select
+                  value={selectedType}
+                  onChange={(e) => setSelectedType(e.target.value)}
+                  className="w-full px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  {JOB_TYPE_OPTIONS.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="border-t border-border pt-4">
+                <h3 className="font-semibold text-card-foreground mb-4">Company</h3>
+                <input
+                  type="text"
+                  value={companyFilter}
+                  onChange={(e) => setCompanyFilter(e.target.value)}
+                  placeholder="e.g. We Love X GmbH"
+                  className="w-full px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+
+              <div className="border-t border-border pt-4">
+                <h3 className="font-semibold text-card-foreground mb-4">Remote</h3>
                 <div className="space-y-2">
-                  {['All', 'Full-time', 'Part-time', 'Contract'].map((type) => (
-                    <label key={type} className="flex items-center gap-2 cursor-pointer">
+                  {[
+                    { label: 'All', value: 'All' },
+                    { label: 'Remote', value: 'true' },
+                    { label: 'On-site', value: 'false' },
+                  ].map((item) => (
+                    <label key={item.value} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="radio"
-                        name="type-mobile"
-                        value={type}
-                        checked={selectedType === type}
-                        onChange={(e) => setSelectedType(e.target.value)}
+                        name="remote-mobile"
+                        value={item.value}
+                        checked={selectedRemote === item.value}
+                        onChange={(e) => setSelectedRemote(e.target.value as 'All' | 'true' | 'false')}
                         className="w-4 h-4"
                       />
-                      <span className="text-sm text-muted-foreground">{type}</span>
+                      <span className="text-sm text-muted-foreground">{item.label}</span>
                     </label>
                   ))}
                 </div>
               </div>
 
               <div className="border-t border-border pt-4">
-                <h3 className="font-semibold text-card-foreground mb-4">Experience Level</h3>
-                <div className="space-y-2">
-                  {['All', 'Junior', 'Mid-level', 'Senior'].map((level) => (
-                    <label key={level} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="level-mobile"
-                        value={level}
-                        checked={selectedLevel === level}
-                        onChange={(e) => setSelectedLevel(e.target.value)}
-                        className="w-4 h-4"
-                      />
-                      <span className="text-sm text-muted-foreground">{level}</span>
-                    </label>
+                <h3 className="font-semibold text-card-foreground mb-4">Tag</h3>
+                <select
+                  value={selectedTag}
+                  onChange={(e) => setSelectedTag(e.target.value)}
+                  className="w-full px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  {TAG_OPTIONS.map((tag) => (
+                    <option key={tag} value={tag}>
+                      {tag}
+                    </option>
                   ))}
-                </div>
+                </select>
               </div>
             </div>
           )}
@@ -171,15 +502,17 @@ export default function Items() {
 
             {!loadingList && !errorList && (
               <div className="space-y-4">
-                {filteredJobs.length > 0 ? (
-                  filteredJobs.map((job) => {
-                    const typeLabel = job.job_types?.[0] ?? 'N/A';
-                    const levelLabel =
-                      job.tags?.find((tag) =>
-                        ['junior', 'mid', 'senior'].includes(tag.toLowerCase()),
-                      ) ?? 'All';
+                {list.length > 0 ? (
+                  list.map((job) => {
+                    const typeLabel =
+                      job.job_types && job.job_types.length > 0
+                        ? job.job_types.join(' / ')
+                        : 'Not specified';
+                    const salaryLabel = job.salary || 'Not specified';
+                    const tagsLabel =
+                      job.tags && job.tags.length > 0 ? job.tags.slice(0, 3).join(' • ') : 'Not specified';
                     return (
-                      <Link key={job.slug} to={`/jobs/${job.slug}`}>
+                      <Link key={job.slug} to={`/jobs/${job.slug}`} className="block">
                         <div className="bg-card border border-border rounded-lg p-6 hover:shadow-lg hover:border-primary transition cursor-pointer">
                           <div className="flex justify-between items-start gap-4">
                             <div className="flex items-start gap-4 flex-1">
@@ -198,19 +531,25 @@ export default function Items() {
                                   </div>
                                   <div className="flex items-center gap-1">
                                     <DollarSign className="w-4 h-4" />
-                                    Not specified
+                                    {salaryLabel}
                                   </div>
                                   <div className="flex items-center gap-1">
                                     <Briefcase className="w-4 h-4" />
                                     {typeLabel}
                                   </div>
+                                  <div className="flex items-center gap-1">
+                                    <span className="w-4 h-4 inline-flex items-center justify-center text-xs">🏷️</span>
+                                    {tagsLabel}
+                                  </div>
                                 </div>
                               </div>
                             </div>
                             <div className="text-right flex-shrink-0">
-                              <span className="inline-block px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold">
-                                {levelLabel}
-                              </span>
+                              {job.remote !== undefined && (
+                                <span className="inline-block px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold">
+                                  {job.remote ? 'Remote' : 'On-site'}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -222,6 +561,48 @@ export default function Items() {
                     <p className="text-muted-foreground text-lg">
                       No jobs found matching your criteria.
                     </p>
+                  </div>
+                )}
+                {total > PAGE_SIZE && (
+                  <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-border">
+                    <div className="text-sm text-muted-foreground">
+                      Page {currentPage} of {totalPages}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="px-3 py-1 rounded-md border border-border text-sm disabled:opacity-50"
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                      >
+                        Previous
+                      </button>
+                      {paginationRange.map((item, idx) =>
+                        item === 'ellipsis' ? (
+                          <span key={`ellipsis-${idx}`} className="px-2 text-muted-foreground">
+                            ...
+                          </span>
+                        ) : (
+                          <button
+                            key={item}
+                            className={`w-9 h-9 rounded-md border text-sm transition ${
+                              item === currentPage
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'border-border hover:border-primary hover:text-primary'
+                            }`}
+                            onClick={() => setCurrentPage(item)}
+                          >
+                            {item}
+                          </button>
+                        ),
+                      )}
+                      <button
+                        className="px-3 py-1 rounded-md border border-border text-sm disabled:opacity-50"
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                      >
+                        Next
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

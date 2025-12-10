@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
-import About from './pages/About';
 import Items from './pages/Items';
 import ItemDetails from './pages/ItemDetails';
 import Login from './pages/Login';
@@ -11,6 +10,7 @@ import Footer from './components/Footer';
 import './App.css';
 import { AuthProvider } from './context/AuthProvider';
 import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from 'sonner';
 
 function App() {
   return (
@@ -20,7 +20,6 @@ function App() {
           <NavBar />
           <Routes>
             <Route index element={<Home />} />
-            <Route path="about" element={<About />} />
             <Route path="jobs" element={<Items />} />
             <Route path="jobs/:id" element={<ItemDetails />} />
             <Route path="login" element={<Login />} />
@@ -28,6 +27,7 @@ function App() {
             <Route path="profile" element={<Profile />} />
           </Routes>
           <Footer />
+          <Toaster position="top-center" richColors />
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>
