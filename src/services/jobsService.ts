@@ -24,8 +24,8 @@ export type Job = {
   url: string;
   slug: string;
   salary?: string;
-  created_at?: unknown;
-  updated_at?: unknown;
+  created_at?: string | null;
+  updated_at?: string | null;
 };
 
 function jobsCollection(firestore: Firestore) {
@@ -63,6 +63,22 @@ function getTimestampValue(dateLike: unknown) {
     return seconds * 1000 + Math.floor(nanos / 1_000_000);
   }
   return 0;
+}
+
+function toIsoString(dateLike: unknown): string | null {
+  const ms = getTimestampValue(dateLike);
+  if (!ms) return null;
+  const d = new Date(ms);
+  return Number.isFinite(d.valueOf()) ? d.toISOString() : null;
+}
+
+function serializeJob(raw: unknown): Job {
+  const job = (raw as Record<string, unknown>) ?? {};
+  return {
+    ...job,
+    created_at: toIsoString(job.created_at),
+    updated_at: toIsoString(job.updated_at),
+  } as Job;
 }
 
 export async function fetchJobs({
@@ -103,7 +119,7 @@ export async function fetchJobs({
   const snap = await getDocs(q);
   const searchLower = (search ?? '').trim().toLowerCase();
 
-  const allJobs = snap.docs.map((d) => d.data() as Job);
+  const allJobs = snap.docs.map((d) => serializeJob(d.data()));
 
   const filteredBySearch = allJobs.filter((job) => {
     if (!searchLower) return true;
@@ -154,6 +170,6 @@ export async function fetchJobBySlug(slug: string) {
   const ref = doc(db, 'jobs', slug);
   const snap = await getDoc(ref);
   if (!snap.exists()) return null;
-  return snap.data() as Job;
+  return serializeJob(snap.data());
 }
 
