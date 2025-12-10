@@ -2,7 +2,9 @@ import { useState, type FormEvent } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { FirebaseError } from 'firebase/app';
 import { auth } from '../firebase';
-import { Link, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Mail, Lock } from 'lucide-react';
 
 export default function Login() {
   const nav = useNavigate();
@@ -31,87 +33,87 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, email.trim(), password);
       nav('/profile');
     } catch (err) {
       const code = err instanceof FirebaseError ? err.code : 'unknown';
       setError(normalizeError(code));
-      setEmail('');
-      setPassword('');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white shadow-lg rounded-2xl border border-gray-200 p-6">
+    <main className="min-h-screen bg-background py-12 px-4">
+      <div className="max-w-md mx-auto">
 
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold">Login</h1>
-          <p className="text-gray-500 text-sm">Enter your email and password</p>
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-foreground mb-2">Welcome Back</h1>
+          <p className="text-muted-foreground">Sign in to your Career Atlas account</p>
         </div>
 
-        <form className="space-y-4" onSubmit={handleLogin}>
-
-          <div className="flex flex-col">
-            <label htmlFor="email" className="text-sm font-medium mb-1">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              placeholder="example@gmail.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className={`border rounded-md px-3 py-2 focus:outline-none focus:ring-2 
-                ${error ? 'border-red-400 focus:ring-red-300' : 'focus:ring-blue-400'}`}
-            />
-          </div>
-
-          <div className="flex flex-col">
-            <label htmlFor="password" className="text-sm font-medium mb-1">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              placeholder="Your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className={`border rounded-md px-3 py-2 focus:outline-none focus:ring-2 
-                ${error ? 'border-red-400 focus:ring-red-300' : 'focus:ring-blue-400'}`}
-            />
-          </div>
-
-          {error && (
-            <div className="mb-4 p-3 bg-red-100 text-red-600 border border-red-300 rounded-md text-sm">
-              {error}
+        <div className="bg-card border border-border rounded-lg p-8 shadow-sm">
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-card-foreground mb-2">
+                Email Address
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
+                  placeholder="you@example.com"
+                />
+              </div>
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-card-foreground mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
 
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
-            No account?{' '}
-            <Link to="/signup" className="text-blue-600 hover:underline">
-              Sign up
-            </Link>
-          </p>
+            {error && (
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-destructive text-sm">
+                {error}
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              {loading ? 'Signing in...' : 'Sign In'}
+            </Button>
+          </form>
+
+          <div className="mt-6 pt-6 border-t border-border text-center">
+            <p className="text-sm text-muted-foreground mb-4">
+              Do not have an account?{' '}
+              <NavLink to="/signup" className="text-primary hover:underline font-semibold">
+                Sign up here
+              </NavLink>
+            </p>
+          </div>
         </div>
-
       </div>
-    </div>
+    </main>
   );
 }
 
