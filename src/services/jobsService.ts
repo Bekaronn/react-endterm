@@ -27,6 +27,7 @@ export type Job = {
   salary?: string;
   created_at?: string | null;
   updated_at?: string | null;
+  avatarURL?: string;
 };
 
 function jobsCollection(firestore: Firestore) {

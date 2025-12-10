@@ -438,8 +438,16 @@ export default function Items() {
                         <div className="bg-card border border-border rounded-lg p-6 hover:shadow-lg hover:border-primary transition cursor-pointer">
                           <div className="flex justify-between items-start gap-4">
                             <div className="flex items-start gap-4 flex-1">
-                              <div className="text-3xl" aria-hidden>
-                                🧭
+                              <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center text-2xl overflow-hidden">
+                                {job.avatarURL ? (
+                                  <img
+                                    src={job.avatarURL}
+                                    alt={`${job.company_name} logo`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <span aria-hidden>🧭</span>
+                                )}
                               </div>
                               <div className="flex-1">
                                 <h3 className="text-xl font-semibold text-card-foreground hover:text-primary transition">

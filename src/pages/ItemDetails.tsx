@@ -142,8 +142,16 @@ export default function ItemDetails() {
         <div className="bg-card border border-border rounded-lg p-8 mb-8">
           <div className="flex justify-between items-start gap-4 mb-6">
             <div className="flex items-start gap-4">
-              <div className="text-5xl" aria-hidden>
-                🧭
+              <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center text-4xl overflow-hidden">
+                {job.avatarURL ? (
+                  <img
+                    src={job.avatarURL}
+                    alt={`${job.company_name} logo`}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span aria-hidden>🧭</span>
+                )}
               </div>
               <div>
                 <h1 className="text-4xl font-bold text-card-foreground mb-2">{job.title}</h1>

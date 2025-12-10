@@ -106,8 +106,16 @@ export default function Bookmarks() {
                     <div className="flex justify-between items-start gap-4">
                       <Link to={`/jobs/${job.slug}`} className="flex-1">
                         <div className="flex items-start gap-4">
-                          <div className="text-3xl" aria-hidden>
-                            🧭
+                          <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center text-2xl overflow-hidden">
+                            {job.avatarURL ? (
+                              <img
+                                src={job.avatarURL}
+                                alt={`${job.company_name} logo`}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <span aria-hidden>🧭</span>
+                            )}
                           </div>
                           <div className="flex-1">
                             <h3 className="text-xl font-semibold text-card-foreground hover:text-primary transition mb-1">
