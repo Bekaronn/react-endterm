@@ -1,11 +1,11 @@
 {
-  "name":"BookAtlas",
-  "short_name":"BookAtlas",
+  "name":"Career Atlas",
+  "short_name":"CareerAtlas",
   "start_url": "/",
   "display":"standalone",
-  "theme_color":"#2563eb",
-  "background_color":"#ffffff",
-  "description": "A React application for searching and viewing books using OpenLibrary API",
+  "theme_color":"#6366f1",
+  "background_color":"#0b1021",
+  "description": "Career Atlas — поиск вакансий, бронирование и отслеживание профиля со всем необходимым для кандидатов.",
   "icons":[
     {
       "src":"/android-chrome-192x192.png","sizes":"192x192","type":"image/png"
