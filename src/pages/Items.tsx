@@ -14,10 +14,12 @@ import { fetchJobsThunk, setQuery } from '../features/jobs/jobsSlice';
 import { addFavoriteThunk, removeFavoriteThunk, loadFavoritesThunk } from '../features/favorites/favoritesSlice';
 import { JOB_TYPE_OPTIONS, TAG_OPTIONS, SORT_OPTIONS, JOBS_PAGE_SIZE } from '../constants/jobFilters';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { useTranslation } from 'react-i18next';
 
 export default function Items() {
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { list, loadingList, errorList, total } = useSelector((state: RootState) => state.jobs);
   const { jobIds: favoriteIds = [] } = useSelector((state: RootState) => state.favorites);
@@ -47,20 +49,6 @@ export default function Items() {
     initialSort ?? 'newest',
   );
   const [currentPage, setCurrentPage] = useState(initialPage);
-  const companySuggestions = useMemo(() => {
-    const term = companyFilter.trim().toLowerCase();
-    if (term.length < 2) return [];
-    const names = new Set<string>();
-    list.forEach((job) => {
-      if (job.company_name) {
-        const name = job.company_name.trim();
-        if (name.toLowerCase().includes(term)) {
-          names.add(name);
-        }
-      }
-    });
-    return Array.from(names).slice(0, 6);
-  }, [companyFilter, list]);
 
   const debouncedSearch = useDebouncedValue(searchInput, 400);
   const PAGE_SIZE = JOBS_PAGE_SIZE;
@@ -155,7 +143,7 @@ export default function Items() {
         toast.success('Added to bookmarks');
       }
     } catch (err) {
-      toast.error(isFavorite ? 'Failed to remove bookmark' : 'Failed to add bookmark');
+      toast.error(isFavorite ? t('items.toast.removeFail') : t('items.toast.addFail'));
     }
   };
 
@@ -233,38 +221,6 @@ export default function Items() {
     updateParams({ company: value || null, page: '1' });
   }
 
-  function handleCompanySelect(value: string) {
-    handleCompanyChange(value);
-  }
-
-  const renderCompanyInput = (inputId: string) => (
-    <div className="relative">
-      <input
-        id={inputId}
-        type="text"
-        value={companyFilter}
-        onChange={(e) => handleCompanyChange(e.target.value)}
-        placeholder="e.g. We Love X GmbH"
-        className="w-full px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-        autoComplete="off"
-      />
-      {companySuggestions.length > 0 && (
-        <div className="absolute z-20 mt-1 w-full rounded-md border border-border bg-card shadow-lg">
-          {companySuggestions.map((name) => (
-            <button
-              key={name}
-              type="button"
-              className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted"
-              onClick={() => handleCompanySelect(name)}
-            >
-              {name}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
   function handleRemoteChange(value: 'All' | 'true' | 'false') {
     setSelectedRemote(value);
     setCurrentPage(1);
@@ -282,8 +238,8 @@ export default function Items() {
       <div className="max-w-7xl mx-auto">
 
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">Find Your Next Job</h1>
-          <p className="text-muted-foreground">Discover opportunities tailored to your skills</p>
+          <h1 className="text-4xl font-bold text-foreground mb-2">{t('items.title')}</h1>
+          <p className="text-muted-foreground">{t('items.subtitle')}</p>
         </div>
 
         <div className="mb-4">
@@ -291,7 +247,7 @@ export default function Items() {
             <Search className="absolute left-4 top-3 w-5 h-5 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search by job title, company, or location..."
+              placeholder={t('items.searchPlaceholder')}
               value={searchInput}
               onChange={onChange}
               className="w-full pl-12 pr-4 py-3 bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
@@ -305,10 +261,10 @@ export default function Items() {
             className="flex items-center gap-2 text-primary hover:text-primary/80 transition md:hidden"
           >
             <Filter className="w-5 h-5" />
-            Filters
+            {t('items.filtersToggle')}
           </button>
           <div className="flex items-center gap-2 text-sm ml-auto">
-            <span className="text-muted-foreground">Sort by:</span>
+            <span className="text-muted-foreground">{t('items.sortBy')}</span>
             <select
               value={selectedSort}
               onChange={(e) => handleSortChange(e.target.value as typeof selectedSort)}
@@ -316,7 +272,7 @@ export default function Items() {
             >
               {SORT_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
-                  {opt.label}
+                  {t(`items.sort.${opt.value}`)}
                 </option>
               ))}
             </select>
@@ -328,7 +284,7 @@ export default function Items() {
           <div className="hidden md:block w-64 flex-shrink-0">
             <div className="bg-card border border-border rounded-lg p-6 space-y-6">
               <div>
-                <h3 className="font-semibold text-card-foreground mb-4">Job Type</h3>
+                <h3 className="font-semibold text-card-foreground mb-4">{t('items.jobType')}</h3>
                 <select
                   value={selectedType}
                   onChange={(e) => handleTypeChange(e.target.value)}
@@ -343,23 +299,23 @@ export default function Items() {
               </div>
 
               <div className="border-t border-border pt-4">
-                <h3 className="font-semibold text-card-foreground mb-4">Company</h3>
+                <h3 className="font-semibold text-card-foreground mb-4">{t('items.company')}</h3>
                 <input
                   type="text"
                   value={companyFilter}
                   onChange={(e) => handleCompanyChange(e.target.value)}
-                  placeholder="e.g. We Love X GmbH"
+                  placeholder={t('items.company')}
                   className="w-full px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
 
               <div className="border-t border-border pt-4">
-                <h3 className="font-semibold text-card-foreground mb-4">Remote</h3>
+                <h3 className="font-semibold text-card-foreground mb-4">{t('items.remote')}</h3>
                 <div className="space-y-2">
                   {[
-                    { label: 'All', value: 'All' },
-                    { label: 'Remote', value: 'true' },
-                    { label: 'On-site', value: 'false' },
+                    { label: t('items.remoteAll'), value: 'All' },
+                    { label: t('items.remoteTrue'), value: 'true' },
+                    { label: t('items.remoteFalse'), value: 'false' },
                   ].map((item) => (
                     <label key={item.value} className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -377,7 +333,7 @@ export default function Items() {
               </div>
 
               <div className="border-t border-border pt-4">
-                <h3 className="font-semibold text-card-foreground mb-4">Tag</h3>
+                <h3 className="font-semibold text-card-foreground mb-4">{t('items.tags')}</h3>
                 <select
                   value={selectedTag}
                   onChange={(e) => handleTagChange(e.target.value)}
@@ -397,7 +353,7 @@ export default function Items() {
           {showFilters && (
             <div className="md:hidden mb-6 bg-card border border-border rounded-lg p-6 space-y-6 w-full">
               <div>
-                <h3 className="font-semibold text-card-foreground mb-4">Job Type</h3>
+                <h3 className="font-semibold text-card-foreground mb-4">{t('items.jobType')}</h3>
                 <select
                   value={selectedType}
                   onChange={(e) => handleTypeChange(e.target.value)}
@@ -412,23 +368,23 @@ export default function Items() {
               </div>
 
               <div className="border-t border-border pt-4">
-                <h3 className="font-semibold text-card-foreground mb-4">Company</h3>
+                <h3 className="font-semibold text-card-foreground mb-4">{t('items.company')}</h3>
                 <input
                   type="text"
                   value={companyFilter}
                   onChange={(e) => handleCompanyChange(e.target.value)}
-                  placeholder="e.g. We Love X GmbH"
+                  placeholder={t('items.company')}
                   className="w-full px-3 py-2 bg-card border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
 
               <div className="border-t border-border pt-4">
-                <h3 className="font-semibold text-card-foreground mb-4">Remote</h3>
+                <h3 className="font-semibold text-card-foreground mb-4">{t('items.remote')}</h3>
                 <div className="space-y-2">
                   {[
-                    { label: 'All', value: 'All' },
-                    { label: 'Remote', value: 'true' },
-                    { label: 'On-site', value: 'false' },
+                    { label: t('items.remoteAll'), value: 'All' },
+                    { label: t('items.remoteTrue'), value: 'true' },
+                    { label: t('items.remoteFalse'), value: 'false' },
                   ].map((item) => (
                     <label key={item.value} className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -473,10 +429,10 @@ export default function Items() {
                     const typeLabel =
                       job.job_types && job.job_types.length > 0
                         ? job.job_types.join(' / ')
-                        : 'Not specified';
-                    const salaryLabel = job.salary || 'Not specified';
+                        : t('items.notSpecified');
+                    const salaryLabel = job.salary || t('items.notSpecified');
                     const tagsLabel =
-                      job.tags && job.tags.length > 0 ? job.tags.slice(0, 3).join(' • ') : 'Not specified';
+                      job.tags && job.tags.length > 0 ? job.tags.slice(0, 3).join(' • ') : t('items.notSpecified');
                     return (
                       <Link key={job.slug} to={`/jobs/${job.slug}`} className="block">
                         <div className="bg-card border border-border rounded-lg p-6 hover:shadow-lg hover:border-primary transition cursor-pointer">
@@ -513,7 +469,7 @@ export default function Items() {
                             <div className="text-right flex-shrink-0 flex flex-col items-end gap-2">
                               {job.remote !== undefined && (
                                 <span className="inline-block px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold">
-                                  {job.remote ? 'Remote' : 'On-site'}
+                                  {job.remote ? t('items.remoteBadgeTrue') : t('items.remoteBadgeFalse')}
                                 </span>
                               )}
                               <Button
@@ -534,7 +490,7 @@ export default function Items() {
                 ) : (
                   <div className="text-center py-12">
                     <p className="text-muted-foreground text-lg">
-                      No jobs found matching your criteria.
+                      {t('items.noJobs')}
                     </p>
                   </div>
                 )}
@@ -543,7 +499,7 @@ export default function Items() {
                 {total > PAGE_SIZE && (
                   <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-border">
                     <div className="text-sm text-muted-foreground">
-                      Page {currentPage} of {totalPages}
+                      {t('items.pagination.page')} {currentPage} {t('items.pagination.of')} {totalPages}
                     </div>
                     <div className="flex items-center gap-2">
                       <button
@@ -551,7 +507,7 @@ export default function Items() {
                         onClick={() => handlePageChange(currentPage - 1)}
                         disabled={currentPage === 1}
                       >
-                        Previous
+                        {t('items.pagination.prev')}
                       </button>
                       
                       {paginationRange.map((item, idx) =>
@@ -580,7 +536,7 @@ export default function Items() {
                         onClick={() => handlePageChange(currentPage + 1)}
                         disabled={currentPage === totalPages}
                       >
-                        Next
+                        {t('items.pagination.next')}
                       </button>
                     </div>
                   </div>

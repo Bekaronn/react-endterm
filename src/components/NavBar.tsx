@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import { useTranslation } from "react-i18next";
 import { Menu, X, Compass, Moon, Sun } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button"
@@ -21,13 +22,20 @@ export default function Navbar() {
   const { user, loading, logout } = useAuth();
   const dispatch = useDispatch<AppDispatch>();
   const profile = useSelector((state: RootState) => state.profile.data);
+  const { t, i18n } = useTranslation();
+  const languages = [
+    { code: "kz", label: "ҚАЗ" },
+    { code: "ru", label: "РУ" },
+    { code: "en", label: "EN" },
+  ];
+  const currentLng = i18n.resolvedLanguage || i18n.language;
 
   const displayName = profile?.displayName ?? user?.displayName ?? user?.email ?? "User";
   const email = profile?.email ?? user?.email ?? "";
   const photoURL = profile?.photoURL ?? user?.photoURL ?? undefined;
 
   return (
-    <nav className="bg-background border-b border-border sticky top-0 z-50">
+    <nav className="bg-background border-b  sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
 
@@ -41,12 +49,29 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-3">
             <div className="hidden md:flex items-center gap-8 px-8">
               <NavLink to="/jobs" className="text-foreground hover:text-primary transition">
-                Jobs
+                {t('nav.jobs')}
               </NavLink>
               <NavLink to="/bookmarks" className="text-foreground hover:text-primary transition">
-                Bookmarks
+                {t('nav.bookmarks')}
               </NavLink>
             </div>
+
+            {/* Language */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  {currentLng?.toUpperCase() || 'EN'}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {languages.map((lng) => (
+                  <DropdownMenuItem key={lng.code} onClick={() => i18n.changeLanguage(lng.code)}>
+                    {lng.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon">
@@ -71,19 +96,26 @@ export default function Navbar() {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-2 rounded-full border border-border px-2 py-1 hover:border-primary transition">
+                  <button className="flex items-center gap-2 rounded-full border hover:border-primary transition">
                     <Avatar className="h-9 w-9">
                       <AvatarImage src={photoURL} alt={displayName} />
                       <AvatarFallback>{email?.[0]?.toUpperCase() ?? "U"}</AvatarFallback>
                     </Avatar>
-                    <span className="text-sm font-semibold text-foreground hidden lg:inline">
-                      {displayName}
-                    </span>
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuContent align="end" className="w-64">
+                  <div className="px-3 py-3 border-b  flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={photoURL} alt={displayName} />
+                      <AvatarFallback>{email?.[0]?.toUpperCase() ?? "U"}</AvatarFallback>
+                    </Avatar>
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-semibold text-foreground">{displayName}</p>
+                      <p className="text-xs text-muted-foreground break-all">{email}</p>
+                    </div>
+                  </div>
                   <DropdownMenuItem asChild>
-                    <NavLink to="/profile">Profile</NavLink>
+                    <NavLink to="/profile">{t('nav.profile')}</NavLink>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => {
@@ -91,18 +123,18 @@ export default function Navbar() {
                       dispatch(setProfile(null));
                     }}
                   >
-                    Logout
+                    {t('nav.logout')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
               <>
                 <NavLink to="/login">
-                  <Button variant="outline" disabled={loading}>Login</Button>
+                  <Button variant="outline" disabled={loading}>{t('nav.login')}</Button>
                 </NavLink>
                 <NavLink to="/signup">
                   <Button className="bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
-                    Sign Up
+                    {t('nav.signup')}
                   </Button>
                 </NavLink>
               </>
@@ -119,11 +151,11 @@ export default function Navbar() {
         {isOpen && (
           <div className="md:hidden pb-4 space-y-2">
             <NavLink to="/jobs" className="block py-2 text-foreground hover:text-primary">
-              Jobs
+              {t('nav.jobs')}
             </NavLink>
 
             <NavLink to="/bookmarks" className="block py-2 text-foreground hover:text-primary">
-              Bookmarks
+              {t('nav.bookmarks')}
             </NavLink>
 
             <div className="flex items-center gap-2 px-2 pt-1">
@@ -135,6 +167,26 @@ export default function Navbar() {
               </div>
             </div>
 
+            <div className="flex items-center gap-2 px-2 pt-1">
+              <span className="text-sm text-muted-foreground">Lang</span>
+              <div className="flex gap-1">
+                {languages.map((lng) => {
+                  const active = currentLng === lng.code;
+                  return (
+                    <Button
+                      key={lng.code}
+                      size="sm"
+                      variant={active ? "default" : "outline"}
+                      className="px-2"
+                      onClick={() => i18n.changeLanguage(lng.code)}
+                    >
+                      {lng.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="pt-4 space-y-2">
               {user ? (
                 <>
@@ -143,10 +195,7 @@ export default function Navbar() {
                       <AvatarImage src={photoURL} alt={displayName} />
                       <AvatarFallback>{email?.[0]?.toUpperCase() ?? "U"}</AvatarFallback>
                     </Avatar>
-                    <div className="text-left">
-                      <p className="text-sm font-semibold text-foreground">{displayName}</p>
-                      <p className="text-xs text-muted-foreground">{email || 'Profile'}</p>
-                    </div>
+                    <span className="sr-only">{displayName || email || 'Profile'}</span>
                   </NavLink>
                   <Button
                     variant="outline"
@@ -157,19 +206,19 @@ export default function Navbar() {
                     }}
                     disabled={loading}
                   >
-                    Logout
+                    {t('nav.logout')}
                   </Button>
                 </>
               ) : (
                 <>
                   <NavLink to="/login" className="block">
                     <Button variant="outline" className="w-full bg-transparent" disabled={loading}>
-                      Login
+                      {t('nav.login')}
                     </Button>
                   </NavLink>
                   <NavLink to="/signup" className="block">
                     <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
-                      Sign Up
+                      {t('nav.signup')}
                     </Button>
                   </NavLink>
                 </>

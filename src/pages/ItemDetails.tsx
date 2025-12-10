@@ -10,12 +10,14 @@ import { useAuth } from '../context/AuthProvider';
 import { fetchJobBySlugThunk } from '../features/jobs/jobsSlice';
 import { addFavoriteThunk, removeFavoriteThunk, loadFavoritesThunk } from '../features/favorites/favoritesSlice';
 import type { AppDispatch, RootState } from '../store';
+import { useTranslation } from 'react-i18next';
 
 export default function ItemDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useAuth();
+  const { t } = useTranslation();
 
   const { selectedJob: job, loadingJob, errorJob } = useSelector((state: RootState) => state.jobs);
   const { jobIds: favoriteIds } = useSelector((state: RootState) => state.favorites);
@@ -37,13 +39,13 @@ export default function ItemDetails() {
     try {
       if (isFavorite) {
         await dispatch(removeFavoriteThunk({ uid: user?.uid ?? null, jobId: job.slug })).unwrap();
-        toast.success('Removed from bookmarks');
+        toast.success(t('item.toast.remove'));
       } else {
         await dispatch(addFavoriteThunk({ uid: user?.uid ?? null, jobId: job.slug })).unwrap();
-        toast.success('Added to bookmarks');
+        toast.success(t('item.toast.add'));
       }
     } catch (err) {
-      toast.error(isFavorite ? 'Failed to remove bookmark' : 'Failed to add bookmark');
+      toast.error(isFavorite ? t('item.toast.removeFail') : t('item.toast.addFail'));
     }
   };
 
@@ -51,11 +53,11 @@ export default function ItemDetails() {
     const match = job?.tags?.find((tag) =>
       ['junior', 'mid', 'senior'].includes(tag.toLowerCase()),
     );
-    return match ? match : 'Not specified';
-  }, [job]);
+    return match ? match : t('item.notSpecified');
+  }, [job, t]);
 
-  const typeLabel = job?.job_types?.length ? job.job_types.join(', ') : 'Not specified';
-  const salaryLabel = job?.salary && job.salary.trim() !== '' ? job.salary : 'Not specified';
+  const typeLabel = job?.job_types?.length ? job.job_types.join(', ') : t('item.notSpecified');
+  const salaryLabel = job?.salary && job.salary.trim() !== '' ? job.salary : t('item.notSpecified');
   const postedLabel =
     job?.updated_at && typeof job.updated_at === 'string'
       ? job.updated_at
@@ -65,7 +67,9 @@ export default function ItemDetails() {
       ? job.created_at
       : undefined;
   const remoteLabel =
-    typeof job?.remote === 'boolean' ? (job.remote ? 'Remote' : 'On-site') : 'Not specified';
+    typeof job?.remote === 'boolean'
+      ? (job.remote ? t('item.remoteTrue') : t('item.remoteFalse'))
+      : t('item.notSpecified');
 
   if (loadingJob) return <Spinner />;
   if (errorJob) return <ErrorBox>{errorJob}</ErrorBox>;
@@ -73,9 +77,9 @@ export default function ItemDetails() {
     return (
       <main className="min-h-screen bg-background py-12 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-muted-foreground">Job not found</p>
+          <p className="text-muted-foreground">{t('item.notFound')}</p>
           <Link to="/jobs">
-            <Button className="mt-4">Back to Jobs</Button>
+            <Button className="mt-4">{t('item.back')}</Button>
           </Link>
         </div>
       </main>
@@ -132,7 +136,7 @@ export default function ItemDetails() {
           className="flex items-center gap-2 text-primary hover:text-primary/80 mb-8"
         >
           <ArrowLeft className="w-5 h-5" />
-          Back to Jobs
+          {t('item.back')}
         </button>
 
         <div className="bg-card border border-border rounded-lg p-8 mb-8">
@@ -147,7 +151,7 @@ export default function ItemDetails() {
                 <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <MapPin className="w-4 h-4" />
-                    {job.location || 'Worldwide'}
+                    {job.location || t('item.notSpecified')}
                   </div>
                   <div className="flex items-center gap-1">
                     <DollarSign className="w-4 h-4" />
@@ -185,12 +189,12 @@ export default function ItemDetails() {
             {job.url ? (
               <a href={job.url} target="_blank" rel="noreferrer">
                 <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                  Apply Now
+                  {t('item.apply')}
                 </Button>
               </a>
             ) : (
               <Button disabled className="bg-primary text-primary-foreground">
-                Apply Now
+                {t('item.apply')}
               </Button>
             )}
             <Button
@@ -199,11 +203,11 @@ export default function ItemDetails() {
               className={isFavorite ? 'bg-red-500 text-white hover:bg-red-600' : ''}
             >
               <Heart className={`w-4 h-4 mr-2 ${isFavorite ? 'fill-current' : ''}`} />
-              {isFavorite ? 'Bookmarked' : 'Bookmark'}
+              {isFavorite ? t('item.bookmarked') : t('item.bookmark')}
             </Button>
             <Button variant="outline" onClick={handleShare}>
               <Share2 className="w-4 h-4 mr-2" />
-              Share
+              {t('item.share')}
             </Button>
           </div>
         </div>
@@ -212,7 +216,7 @@ export default function ItemDetails() {
           <div className="lg:col-span-2 space-y-8">
             {job.description && (
               <section>
-                <h2 className="text-2xl font-bold text-foreground mb-4">About This Role</h2>
+            <h2 className="text-2xl font-bold text-foreground mb-4">{t('item.about')}</h2>
                 <div
                   className="text-muted-foreground leading-relaxed space-y-3"
                   dangerouslySetInnerHTML={{ __html: job.description }}
@@ -222,7 +226,7 @@ export default function ItemDetails() {
 
             {job.tags?.length ? (
               <section>
-                <h2 className="text-2xl font-bold text-foreground mb-4">Tags</h2>
+                <h2 className="text-2xl font-bold text-foreground mb-4">{t('item.tags')}</h2>
                 <div className="flex flex-wrap gap-2">
                   {job.tags.map((tag) => (
                     <span
@@ -239,35 +243,35 @@ export default function ItemDetails() {
 
           <div className="space-y-6">
             <div className="bg-card border border-border rounded-lg p-6">
-              <h3 className="font-bold text-card-foreground mb-4">Quick Facts</h3>
+              <h3 className="font-bold text-card-foreground mb-4">{t('item.quickFactsTitle', { defaultValue: 'Quick Facts' })}</h3>
               <div className="space-y-4 text-sm">
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Company</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">{t('item.quickFacts.company')}</p>
                   <p className="font-semibold text-card-foreground">{job.company_name}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Job Types</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">{t('item.quickFacts.jobTypes')}</p>
                   <p className="font-semibold text-card-foreground">{typeLabel}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Location</p>
-                  <p className="font-semibold text-card-foreground">{job.location || 'Worldwide'}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">{t('item.quickFacts.location')}</p>
+                  <p className="font-semibold text-card-foreground">{job.location || t('item.notSpecified')}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Remote</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">{t('item.quickFacts.remote')}</p>
                   <p className="font-semibold text-card-foreground">{remoteLabel}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Salary</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">{t('item.quickFacts.salary')}</p>
                   <p className="font-semibold text-card-foreground">{salaryLabel}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Created</p>
-                  <p className="font-semibold text-card-foreground">{createdLabel ?? 'Not specified'}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">{t('item.quickFacts.created')}</p>
+                  <p className="font-semibold text-card-foreground">{createdLabel ?? t('item.notSpecified')}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Updated</p>
-                  <p className="font-semibold text-card-foreground">{postedLabel ?? 'Not specified'}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">{t('item.quickFacts.updated')}</p>
+                  <p className="font-semibold text-card-foreground">{postedLabel ?? t('item.notSpecified')}</p>
                 </div>
               </div>
             </div>

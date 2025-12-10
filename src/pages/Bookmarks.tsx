@@ -11,6 +11,7 @@ import { loadFavoritesThunk, removeFavoriteThunk } from '../features/favorites/f
 import { fetchJobBySlug } from '../services/jobsService';
 import type { AppDispatch, RootState } from '../store';
 import type { Job } from '../services/jobsService';
+import { useTranslation } from 'react-i18next';
 
 export default function Bookmarks() {
   const dispatch = useDispatch<AppDispatch>();
@@ -18,6 +19,7 @@ export default function Bookmarks() {
   const { jobIds, loading, error } = useSelector((state: RootState) => state.favorites);
   const [favoriteJobs, setFavoriteJobs] = useState<Job[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     dispatch(loadFavoritesThunk({ uid: user?.uid ?? null }));
@@ -44,9 +46,9 @@ export default function Bookmarks() {
   const handleRemove = async (jobId: string) => {
     try {
       await dispatch(removeFavoriteThunk({ uid: user?.uid ?? null, jobId })).unwrap();
-      toast.success('Removed from bookmarks');
+      toast.success(t('bookmarks.remove'));
     } catch (err) {
-      toast.error('Failed to remove bookmark');
+      toast.error(t('bookmarks.removeFail'));
     }
   };
 
@@ -60,22 +62,22 @@ export default function Bookmarks() {
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <Heart className="w-8 h-8 text-primary" />
-            <h1 className="text-4xl font-bold text-foreground">My Bookmarks</h1>
+            <h1 className="text-4xl font-bold text-foreground">{t('bookmarks.title')}</h1>
           </div>
           <p className="text-muted-foreground">
             {jobIds.length === 0
-              ? 'No bookmarked jobs yet. Start exploring and save your favorites!'
-              : `You have ${jobIds.length} bookmarked ${jobIds.length === 1 ? 'job' : 'jobs'}`}
+              ? t('bookmarks.subtitleEmpty')
+              : t('bookmarks.subtitleCount', { count: jobIds.length })}
           </p>
         </div>
 
         {jobIds.length === 0 ? (
           <div className="text-center py-16">
             <Heart className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <p className="text-lg text-muted-foreground mb-6">Your bookmarks list is empty</p>
+            <p className="text-lg text-muted-foreground mb-6">{t('bookmarks.subtitleEmpty')}</p>
             <Link to="/jobs">
               <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                Browse Jobs
+                {t('bookmarks.emptyCta')}
               </Button>
             </Link>
           </div>
@@ -91,10 +93,10 @@ export default function Bookmarks() {
                 const typeLabel =
                   job.job_types && job.job_types.length > 0
                     ? job.job_types.join(' / ')
-                    : 'Not specified';
-                const salaryLabel = job.salary || 'Not specified';
+                    : t('items.notSpecified');
+                const salaryLabel = job.salary || t('items.notSpecified');
                 const tagsLabel =
-                  job.tags && job.tags.length > 0 ? job.tags.slice(0, 3).join(' • ') : 'Not specified';
+                  job.tags && job.tags.length > 0 ? job.tags.slice(0, 3).join(' • ') : t('items.notSpecified');
 
                 return (
                   <div
@@ -115,7 +117,7 @@ export default function Bookmarks() {
                             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                               <div className="flex items-center gap-1">
                                 <MapPin className="w-4 h-4" />
-                                {job.location || 'Worldwide'}
+                                {job.location || t('item.notSpecified')}
                               </div>
                               <div className="flex items-center gap-1">
                                 <DollarSign className="w-4 h-4" />
