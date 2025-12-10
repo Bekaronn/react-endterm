@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthProvider';
 import { getUserProfile, saveUserProfile, uploadAvatar } from '../services/profileService';
 import { setProfile } from '../features/profile/profileSlice';
 import type { AppDispatch } from '../store';
+import { SkeletonImage } from '../components/SkeletonImage';
 
 export default function Profile() {
   const { user, loading, logout } = useAuth();
@@ -164,9 +165,17 @@ export default function Profile() {
                 }
               }}
             >
-              <Avatar className="h-20 w-20 md:h-24 md:w-24 ring-4 ring-background shadow-md transition group-hover:ring-primary/40">
-                <AvatarImage src={photoUrl ?? undefined} alt={user.displayName ?? user.email ?? 'User'} />
-                <AvatarFallback className="text-xl">{user.email?.[0]?.toUpperCase() ?? 'U'}</AvatarFallback>
+              <Avatar className="h-20 w-20 md:h-24 md:w-24 ring-4 ring-background shadow-md transition group-hover:ring-primary/40 bg-muted">
+                <SkeletonImage
+                  src={photoUrl}
+                  alt={user.displayName ?? user.email ?? 'User'}
+                  // Передаем fallback (инициалы), если фото нет
+                  fallback={
+                    <div className="flex h-full w-full items-center justify-center text-xl text-muted-foreground font-medium">
+                      {user.email?.[0]?.toUpperCase() ?? 'U'}
+                    </div>
+                  }
+                />
               </Avatar>
               <button
                 type="button"
