@@ -149,6 +149,18 @@ export default function Applications() {
                               </div>
                             ) : null}
 
+                            {(app?.firstName || app?.lastName || app?.phone) && (
+                              <div className="mt-3 text-sm text-muted-foreground space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-card-foreground">
+                                    {`${app.firstName ?? ''} ${app.lastName ?? ''}`.trim() ||
+                                      t('applications.notSpecified', { defaultValue: 'Не указано' })}
+                                  </span>
+                                </div>
+                                {app.phone && <div>{app.phone}</div>}
+                              </div>
+                            )}
+
                             <div className="mt-3 text-sm text-muted-foreground flex items-center gap-2">
                               <FileText className="w-4 h-4 text-primary" />
                               {app?.resumeUrl ? (

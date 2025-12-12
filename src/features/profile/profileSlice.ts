@@ -6,6 +6,7 @@ export type ProfileData = {
   photoURL: string | null;
   resumeURL?: string | null;
   resumeName?: string | null;
+  phone?: string | null;
   uid: string | null;
 };
 

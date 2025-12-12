@@ -23,6 +23,7 @@ import type { AppDispatch, RootState } from '../store';
 import { useTranslation } from 'react-i18next';
 import { useFavoriteJobs } from '../hooks/useFavoriteJobs';
 import { useApplications } from '../hooks/useApplications';
+import { usePhoneValidation } from '../hooks/usePhoneValidation';
 import { useAuth } from '@/context/AuthProvider';
 import { getUserProfile } from '@/services/profileService';
 import { setProfile } from '@/features/profile/profileSlice';
@@ -48,6 +49,7 @@ export default function ItemDetails() {
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const { normalizePhone, isValidPhone } = usePhoneValidation();
 
   useEffect(() => {
     if (id) {
@@ -65,11 +67,14 @@ export default function ItemDetails() {
     if (profile?.resumeName) {
       setResumeFileName(profile.resumeName);
     }
+    if (profile?.phone) {
+      setPhone(profile.phone);
+    }
   }, [profile]);
 
   const ensureProfileLoaded = async () => {
     if (!user) return;
-    const needsProfile = !profile || !profile.displayName || !profile.resumeName;
+    const needsProfile = !profile || !profile.displayName || !profile.resumeName || !profile.phone;
     if (!needsProfile) return;
     setProfileLoading(true);
     try {
@@ -83,6 +88,9 @@ export default function ItemDetails() {
         if (data.resumeName) {
           setResumeFileName(data.resumeName);
         }
+        if (data.phone) {
+          setPhone(data.phone);
+        }
         dispatch(
           setProfile({
             displayName: data.displayName ?? profile?.displayName ?? null,
@@ -90,6 +98,7 @@ export default function ItemDetails() {
             photoURL: data.photoURL ?? profile?.photoURL ?? null,
             resumeURL: data.resumeURL ?? profile?.resumeURL ?? null,
             resumeName: data.resumeName ?? profile?.resumeName ?? null,
+            phone: data.phone ?? profile?.phone ?? null,
             uid: user.uid,
           }),
         );
@@ -237,6 +246,13 @@ export default function ItemDetails() {
       return;
     }
 
+    const normalizedPhone = normalizePhone(phone);
+    if (!isValidPhone(normalizedPhone)) {
+      toast.error(t('apply.phoneInvalid', { defaultValue: 'Некорректный номер телефона' }));
+      return;
+    }
+    setPhone(normalizedPhone);
+
     if (resumeOption === 'saved' && !profile?.resumeName) {
       toast.error(t('apply.noSavedResume', { defaultValue: 'Нет сохранённого резюме. Загрузите новый файл.' }));
       return;
@@ -255,6 +271,9 @@ export default function ItemDetails() {
 
     void addApplication({
       jobId: job.slug,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      phone: normalizedPhone,
       comment: comment || undefined,
       resumeName: resumeName ?? null,
       resumeUrl: resumeUrl ?? null,

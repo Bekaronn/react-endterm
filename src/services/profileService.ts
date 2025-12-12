@@ -13,6 +13,7 @@ export type UserProfile = {
   photoURL?: string;
   resumeURL?: string;
   resumeName?: string;
+  phone?: string;
   updatedAt?: unknown;
 };
 
@@ -125,6 +126,11 @@ export async function updateDisplayName(user: User, displayName: string) {
   await updateProfile(user, { displayName });
   await saveUserProfile(user.uid, { displayName });
   return displayName;
+}
+
+export async function updatePhone(user: User, phone: string) {
+  await saveUserProfile(user.uid, { phone });
+  return phone;
 }
 
 

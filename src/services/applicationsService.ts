@@ -2,6 +2,9 @@ const STORAGE_KEY = 'career_atlas_applications';
 
 export type ApplicationEntry = {
   jobId: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
   comment?: string;
   resumeName?: string | null;
   resumeUrl?: string | null;

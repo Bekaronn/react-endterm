@@ -22,10 +22,11 @@ export default function Profile() {
     user,
     loading,
     logout,
-    state: { photoUrl, resumeUrl, resumeName, status, resumeStatus, uploading, resumeUploading, name, savingName },
+    state: { photoUrl, resumeUrl, resumeName, status, resumeStatus, uploading, resumeUploading, name, savingName, phone, savingPhone },
     setName,
+    setPhone,
     refs: { fileInputRef, resumeInputRef },
-    handlers: { handleSelectDefault, handleFileChange, handleResumeChange, handleSaveName },
+    handlers: { handleSelectDefault, handleFileChange, handleResumeChange, handleSaveName, handleSavePhone },
   } = useProfileInfo();
 
   if (loading) return <Spinner />;
@@ -117,6 +118,21 @@ export default function Profile() {
                 </div>
                 <Button size="sm" onClick={handleSaveName} disabled={savingName || uploading}>
                   {savingName ? t('profile.saving') : t('profile.saveName')}
+                </Button>
+              </div>
+
+              <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">{t('profile.phoneLabel', { defaultValue: 'Телефон' })}</p>
+                  <Input
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder={t('profile.phonePlaceholder', { defaultValue: '+7 777 000 00 00' })}
+                    disabled={savingPhone || uploading}
+                  />
+                </div>
+                <Button size="sm" onClick={handleSavePhone} disabled={savingPhone || uploading}>
+                  {savingPhone ? t('profile.saving') : t('profile.savePhone', { defaultValue: 'Сохранить телефон' })}
                 </Button>
               </div>
 

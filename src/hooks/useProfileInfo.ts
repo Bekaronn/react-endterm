@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthProvider';
@@ -9,7 +9,10 @@ import {
   updateDisplayName,
   uploadUserAvatar,
   uploadUserResume,
+  updatePhone,
 } from '../services/profileService';
+import { usePhoneValidation } from './usePhoneValidation';
+import type { RootState } from '@/store';
 import { disposeCompressionWorker } from '../services/imageCompressionService';
 import { setProfile } from '../features/profile/profileSlice';
 import type { AppDispatch } from '../store';
@@ -19,6 +22,7 @@ export type ProfileHandlers = {
   handleFileChange: (e: ChangeEvent<HTMLInputElement>) => Promise<void>;
   handleResumeChange: (e: ChangeEvent<HTMLInputElement>) => Promise<void>;
   handleSaveName: () => Promise<void>;
+  handleSavePhone: () => Promise<void>;
 };
 
 export type ProfileState = {
@@ -31,12 +35,15 @@ export type ProfileState = {
   resumeUploading: boolean;
   name: string;
   savingName: boolean;
+  phone: string;
+  savingPhone: boolean;
 };
 
 export default function useProfileInfo() {
   const { user, loading, logout } = useAuth();
   const dispatch = useDispatch<AppDispatch>();
   const { t } = useTranslation();
+  const cachedProfile = useSelector((state: RootState) => state.profile.data);
 
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [resumeUrl, setResumeUrl] = useState<string | null>(null);
@@ -47,6 +54,9 @@ export default function useProfileInfo() {
   const [resumeUploading, setResumeUploading] = useState(false);
   const [name, setName] = useState('');
   const [savingName, setSavingName] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [savingPhone, setSavingPhone] = useState(false);
+  const { normalizePhone, isValidPhone } = usePhoneValidation();
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const resumeInputRef = useRef<HTMLInputElement | null>(null);
@@ -60,6 +70,7 @@ export default function useProfileInfo() {
       setResumeStatus(null);
       setStatus(null);
       setName('');
+    setPhone('');
       return;
     }
 
@@ -67,6 +78,7 @@ export default function useProfileInfo() {
     setResumeUrl(null);
     setResumeName(null);
     setName(user.displayName ?? '');
+    setPhone(cachedProfile?.phone ?? user.phoneNumber ?? '');
 
     dispatch(
       setProfile({
@@ -75,6 +87,7 @@ export default function useProfileInfo() {
         photoURL: user.photoURL ?? null,
         resumeURL: null,
         resumeName: null,
+        phone: null,
         uid: user.uid,
       }),
     );
@@ -94,6 +107,9 @@ export default function useProfileInfo() {
         if (profile.resumeName) {
           setResumeName(profile.resumeName);
         }
+        if (profile.phone) {
+          setPhone(profile.phone);
+        }
         dispatch(
           setProfile({
             displayName: profile.displayName ?? user.displayName ?? null,
@@ -101,6 +117,7 @@ export default function useProfileInfo() {
             photoURL: profile.photoURL ?? user.photoURL ?? null,
             resumeURL: profile.resumeURL ?? null,
             resumeName: profile.resumeName ?? null,
+            phone: profile.phone ?? null,
             uid: user.uid,
           }),
         );
@@ -110,7 +127,7 @@ export default function useProfileInfo() {
     return () => {
       disposeCompressionWorker();
     };
-  }, [dispatch, user]);
+  }, [cachedProfile?.phone, dispatch, user]);
 
   const handleSelectDefault = useCallback(
     async (src: string) => {
@@ -130,6 +147,7 @@ export default function useProfileInfo() {
             photoURL: src,
             resumeURL: resumeUrl ?? null,
             resumeName: resumeName ?? null,
+            phone,
             uid: user.uid,
           }),
         );
@@ -185,6 +203,7 @@ export default function useProfileInfo() {
             photoURL: downloadUrl ?? null,
             resumeURL: resumeUrl ?? null,
             resumeName: resumeName ?? null,
+            phone,
             uid: user.uid,
           }),
         );
@@ -237,6 +256,7 @@ export default function useProfileInfo() {
             photoURL: photoUrl ?? user.photoURL ?? null,
             resumeURL: url,
             resumeName: savedName,
+            phone,
             uid: user.uid,
           }),
         );
@@ -281,6 +301,7 @@ export default function useProfileInfo() {
           photoURL: photoUrl ?? user.photoURL ?? null,
           resumeURL: resumeUrl ?? null,
           resumeName: resumeName ?? null,
+          phone,
           uid: user.uid,
         }),
       );
@@ -294,6 +315,57 @@ export default function useProfileInfo() {
       setSavingName(false);
     }
   }, [dispatch, name, photoUrl, resumeName, resumeUrl, t, user]);
+
+  const handleSavePhone = useCallback(async () => {
+    if (!user) return;
+    const trimmed = phone.trim();
+    if (!trimmed) {
+      const message = t('profile.phoneEmpty', { defaultValue: 'Телефон не может быть пустым.' });
+      setStatus(message);
+      toast.error(message);
+      return;
+    }
+
+    const normalized = normalizePhone(trimmed);
+    if (!isValidPhone(normalized)) {
+      const message = t('profile.phoneInvalid', { defaultValue: 'Неверный формат телефона.' });
+      setStatus(message);
+      toast.error(message);
+      return;
+    }
+
+    if (user.phoneNumber && normalized === user.phoneNumber) {
+      setStatus(t('profile.phoneUnchanged', { defaultValue: 'Телефон без изменений.' }));
+      return;
+    }
+
+    setSavingPhone(true);
+    setStatus(t('profile.saving'));
+    try {
+      await updatePhone(user, normalized);
+      setPhone(normalized);
+      dispatch(
+        setProfile({
+          displayName: user.displayName ?? null,
+          email: user.email ?? null,
+          photoURL: photoUrl ?? user.photoURL ?? null,
+          resumeURL: resumeUrl ?? null,
+          resumeName: resumeName ?? null,
+          phone: normalized,
+          uid: user.uid,
+        }),
+      );
+      setStatus(t('profile.phoneUpdated', { defaultValue: 'Телефон обновлен.' }));
+      toast.success(t('profile.phoneUpdated', { defaultValue: 'Телефон обновлен.' }));
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : t('profile.uploadFail', { defaultValue: 'Не удалось обновить телефон' });
+      setStatus(message);
+      toast.error(message);
+    } finally {
+      setSavingPhone(false);
+    }
+  }, [dispatch, phone, photoUrl, resumeName, resumeUrl, t, user]);
 
   return {
     user,
@@ -309,8 +381,11 @@ export default function useProfileInfo() {
       resumeUploading,
       name,
       savingName,
+      phone,
+      savingPhone,
     } as ProfileState,
     setName,
+    setPhone,
     refs: {
       fileInputRef,
       resumeInputRef,
@@ -320,6 +395,7 @@ export default function useProfileInfo() {
       handleFileChange,
       handleResumeChange,
       handleSaveName,
+      handleSavePhone,
     } as ProfileHandlers,
   };
 }
