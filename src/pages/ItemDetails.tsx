@@ -1,8 +1,20 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { MapPin, DollarSign, Briefcase, Calendar, ArrowLeft, Share2, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import Spinner from '../components/Spinner';
 import ErrorBox from '../components/ErrorBox';
@@ -10,6 +22,10 @@ import { fetchJobBySlugThunk } from '../features/jobs/jobsSlice';
 import type { AppDispatch, RootState } from '../store';
 import { useTranslation } from 'react-i18next';
 import { useFavoriteJobs } from '../hooks/useFavoriteJobs';
+import { useApplications } from '../hooks/useApplications';
+import { useAuth } from '@/context/AuthProvider';
+import { getUserProfile } from '@/services/profileService';
+import { setProfile } from '@/features/profile/profileSlice';
 
 export default function ItemDetails() {
   const { id } = useParams<{ id: string }>();
@@ -17,8 +33,21 @@ export default function ItemDetails() {
   const dispatch = useDispatch<AppDispatch>();
   const { t, i18n } = useTranslation();
   const { favoriteIds, toggleFavorite } = useFavoriteJobs();
+  const { isApplied, addApplication } = useApplications();
+  const { user } = useAuth();
+  const profile = useSelector((state: RootState) => state.profile.data);
 
   const { selectedJob: job, loadingJob, errorJob } = useSelector((state: RootState) => state.jobs);
+  const [isApplyOpen, setIsApplyOpen] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [comment, setComment] = useState('');
+  const [resumeOption, setResumeOption] = useState<'saved' | 'upload'>('saved');
+  const [resumeFileName, setResumeFileName] = useState<string | null>(null);
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -26,7 +55,52 @@ export default function ItemDetails() {
     }
   }, [dispatch, id]);
 
+  useEffect(() => {
+    const display = profile?.displayName?.trim() ?? '';
+    if (display) {
+      const parts = display.split(' ');
+      setFirstName(parts[0] ?? '');
+      setLastName(parts.slice(1).join(' '));
+    }
+    if (profile?.resumeName) {
+      setResumeFileName(profile.resumeName);
+    }
+  }, [profile]);
+
+  const ensureProfileLoaded = async () => {
+    if (!user) return;
+    const needsProfile = !profile || !profile.displayName || !profile.resumeName;
+    if (!needsProfile) return;
+    setProfileLoading(true);
+    try {
+      const data = await getUserProfile(user.uid);
+      if (data) {
+        if (data.displayName) {
+          const parts = data.displayName.split(' ');
+          setFirstName(parts[0] ?? '');
+          setLastName(parts.slice(1).join(' '));
+        }
+        if (data.resumeName) {
+          setResumeFileName(data.resumeName);
+        }
+        dispatch(
+          setProfile({
+            displayName: data.displayName ?? profile?.displayName ?? null,
+            email: user.email ?? profile?.email ?? null,
+            photoURL: data.photoURL ?? profile?.photoURL ?? null,
+            resumeURL: data.resumeURL ?? profile?.resumeURL ?? null,
+            resumeName: data.resumeName ?? profile?.resumeName ?? null,
+            uid: user.uid,
+          }),
+        );
+      }
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
   const isFavorite = job ? favoriteIds.includes(job.slug) : false;
+  const isAlreadyApplied = job ? isApplied(job.slug) : false;
 
   const handleToggleFavorite = async () => {
     if (!job) return;
@@ -105,15 +179,15 @@ export default function ItemDetails() {
 
     const tryCopy = async () => {
       if (!navigator.clipboard?.writeText) {
-        toast.info('Sharing is not supported in this browser');
+        toast.info(t('share.unsupported', { defaultValue: 'Sharing is not supported in this browser' }));
         return false;
       }
       try {
         await navigator.clipboard.writeText(url);
-        toast.success('Link copied to clipboard');
+        toast.success(t('share.copied', { defaultValue: 'Link copied to clipboard' }));
         return true;
       } catch {
-        toast.error('Unable to copy link');
+        toast.error(t('share.copyError', { defaultValue: 'Unable to copy link' }));
         return false;
       }
     };
@@ -130,11 +204,63 @@ export default function ItemDetails() {
           await tryCopy();
           return;
         }
-        toast.error('Unable to open share options');
+        toast.error(t('share.unable', { defaultValue: 'Unable to open share options' }));
       }
     }
 
     await tryCopy();
+  };
+
+  const handleFileSelect = (file: File | null) => {
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      toast.error(t('apply.resumePdf', { defaultValue: 'Загрузите файл в формате PDF' }));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error(t('apply.resumeLimit', { defaultValue: 'Максимальный размер резюме 5 МБ' }));
+      return;
+    }
+    setResumeOption('upload');
+    setResumeFile(file);
+    setResumeFileName(file.name);
+  };
+
+  const handleSubmitApplication = () => {
+    if (!job) return;
+    if (isAlreadyApplied) {
+      toast.info(t('apply.already', { defaultValue: 'Вы уже откликались на эту вакансию' }));
+      return;
+    }
+    if (!firstName.trim() || !lastName.trim() || !phone.trim()) {
+      toast.error(t('apply.required', { defaultValue: 'Имя, фамилия и телефон обязательны' }));
+      return;
+    }
+
+    if (resumeOption === 'saved' && !profile?.resumeName) {
+      toast.error(t('apply.noSavedResume', { defaultValue: 'Нет сохранённого резюме. Загрузите новый файл.' }));
+      return;
+    }
+
+    if (resumeOption === 'upload' && !resumeFile) {
+      toast.error(t('apply.addResume', { defaultValue: 'Добавьте файл резюме или выберите сохранённое' }));
+      return;
+    }
+
+    const resumeName =
+      resumeOption === 'saved'
+        ? profile?.resumeName ?? undefined
+        : resumeFileName ?? undefined;
+    const resumeUrl = resumeOption === 'saved' ? profile?.resumeURL ?? null : null;
+
+    void addApplication({
+      jobId: job.slug,
+      comment: comment || undefined,
+      resumeName: resumeName ?? null,
+      resumeUrl: resumeUrl ?? null,
+    });
+    setIsApplyOpen(false);
+    setComment('');
   };
 
   return (
@@ -203,17 +329,147 @@ export default function ItemDetails() {
           </div>
 
           <div className="flex gap-4 flex-wrap">
-            {job.url ? (
-              <a href={job.url} target="_blank" rel="noreferrer">
-                <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                  {t('item.apply')}
+            <Dialog
+              open={isApplyOpen}
+              onOpenChange={(open) => {
+                setIsApplyOpen(open);
+                if (open) {
+                  void ensureProfileLoaded();
+                }
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                  disabled={isAlreadyApplied || profileLoading}
+                >
+                  {isAlreadyApplied
+                    ? t('apply.sent', { defaultValue: 'Отклик отправлен' })
+                    : profileLoading
+                      ? t('apply.loading', { defaultValue: 'Загрузка...' })
+                      : t('apply.cta', { defaultValue: 'Откликнуться' })}
                 </Button>
-              </a>
-            ) : (
-              <Button disabled className="bg-primary text-primary-foreground">
-                {t('item.apply')}
-              </Button>
-            )}
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>{t('apply.title', { defaultValue: 'Отклик на вакансию' })}</DialogTitle>
+                  <DialogDescription>
+                    {t('apply.subtitle', { defaultValue: 'Заполните контактные данные и выберите резюме для отправки.' })}
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="grid gap-4 py-2">
+                  <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="firstName">{t('apply.firstName', { defaultValue: 'Имя' })}</Label>
+                      <Input
+                        id="firstName"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="Иван"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="lastName">{t('apply.lastName', { defaultValue: 'Фамилия' })}</Label>
+                      <Input
+                        id="lastName"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="Иванов"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="phone">{t('apply.phone', { defaultValue: 'Телефон' })}</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="+7 777 000 00 00"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="comment">{t('apply.comment', { defaultValue: 'Комментарий' })}</Label>
+                    <Textarea
+                      id="comment"
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      placeholder="Расскажите кратко о себе или уточните детали"
+                      rows={4}
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label>{t('apply.resume', { defaultValue: 'Резюме' })}</Label>
+                    <div className="space-y-2 rounded-md border border-border p-3">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="resume"
+                          className="h-4 w-4"
+                          checked={resumeOption === 'saved'}
+                          onChange={() => setResumeOption('saved')}
+                        />
+                        <span>
+                          {t('apply.useSaved', { defaultValue: 'Использовать сохранённое резюме' })}{' '}
+                          {profile?.resumeName ? `(${profile.resumeName})` : t('apply.noFile', { defaultValue: '(нет файла)' })}
+                        </span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="resume"
+                          className="h-4 w-4"
+                          checked={resumeOption === 'upload'}
+                          onChange={() => setResumeOption('upload')}
+                        />
+                        <span>{t('apply.uploadOther', { defaultValue: 'Загрузить другое (PDF, до 5 МБ)' })}</span>
+                      </label>
+
+                      {resumeOption === 'upload' ? (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            {t('apply.pickFile', { defaultValue: 'Выбрать файл' })}
+                          </Button>
+                          <span className="text-sm text-muted-foreground">
+                            {resumeFileName ?? t('apply.fileNotChosen', { defaultValue: 'Файл не выбран' })}
+                          </span>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="application/pdf"
+                  className="hidden"
+                  onChange={(e) => handleFileSelect(e.target.files?.[0] ?? null)}
+                />
+
+                <DialogFooter className="gap-2">
+                  <Button
+                    onClick={handleSubmitApplication}
+                    className="bg-primary text-primary-foreground"
+                    disabled={isAlreadyApplied || profileLoading}
+                  >
+                    {isAlreadyApplied
+                      ? t('apply.alreadyShort', { defaultValue: 'Уже откликались' })
+                      : profileLoading
+                        ? t('apply.preparing', { defaultValue: 'Подготовка…' })
+                        : t('apply.submit', { defaultValue: 'Отправить отклик' })}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <Button
               variant={isFavorite ? 'default' : 'outline'}
               onClick={handleToggleFavorite}

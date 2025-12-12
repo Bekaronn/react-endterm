@@ -54,6 +54,9 @@ export default function Navbar() {
               <NavLink to="/bookmarks" className="text-foreground hover:text-primary transition">
                 {t('nav.bookmarks')}
               </NavLink>
+              <NavLink to="/applications" className="text-foreground hover:text-primary transition">
+                {t('nav.applications', { defaultValue: 'Отклики' })}
+              </NavLink>
             </div>
 
             {/* Language */}
@@ -156,6 +159,10 @@ export default function Navbar() {
 
             <NavLink to="/bookmarks" className="block py-2 text-foreground hover:text-primary">
               {t('nav.bookmarks')}
+            </NavLink>
+
+            <NavLink to="/applications" className="block py-2 text-foreground hover:text-primary">
+              {t('nav.applications', { defaultValue: 'Отклики' })}
             </NavLink>
 
             <div className="flex items-center gap-2 px-2 pt-1">
