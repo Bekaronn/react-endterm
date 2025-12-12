@@ -1,5 +1,4 @@
 import { NavLink } from 'react-router-dom';
-import '../styles/Home.css';
 import { Button } from "@/components/ui/button"
 import { Compass, Search, Briefcase, MessageSquare, Zap } from "lucide-react"
 import { useTranslation } from 'react-i18next';

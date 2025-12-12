@@ -74,11 +74,12 @@ export default function useProfileInfo() {
       return;
     }
 
+    const initialPhone = cachedProfile?.phone ?? user.phoneNumber ?? null;
     setPhotoUrl(user.photoURL ?? null);
     setResumeUrl(null);
     setResumeName(null);
     setName(user.displayName ?? '');
-    setPhone(cachedProfile?.phone ?? user.phoneNumber ?? '');
+    setPhone(initialPhone ?? '');
 
     dispatch(
       setProfile({
@@ -87,7 +88,7 @@ export default function useProfileInfo() {
         photoURL: user.photoURL ?? null,
         resumeURL: null,
         resumeName: null,
-        phone: null,
+        phone: initialPhone,
         uid: user.uid,
       }),
     );

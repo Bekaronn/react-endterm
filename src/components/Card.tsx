@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import type { Job } from '../services/jobsService';
-import '../styles/Card.css';
 
 type CardProps = {
   item: Job;

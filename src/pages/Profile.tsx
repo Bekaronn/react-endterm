@@ -66,8 +66,8 @@ export default function Profile() {
                 aria-label={t('profile.updatePhoto')}
                 className="absolute -bottom-2 -right-2 flex items-center justify-center rounded-full bg-primary text-primary-foreground p-2 shadow-lg hover:bg-primary/90 transition disabled:opacity-60"
                 onClick={(e) => {
-                   e.stopPropagation(); // Чтобы клик по кнопке не вызывал двойной клик родителя
-                   fileInputRef.current?.click();
+                  e.stopPropagation(); // Чтобы клик по кнопке не вызывал двойной клик родителя
+                  fileInputRef.current?.click();
                 }}
                 disabled={uploading}
               >
@@ -103,11 +103,16 @@ export default function Profile() {
             <div className="flex items-center gap-2">
               <User2 className="h-5 w-5 text-primary" />
               <h2 className="text-xl font-semibold text-card-foreground">{t('profile.yourProfile')}</h2>
-        </div>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="rounded-xl border border-border bg-muted/30 p-4 sm:col-span-2">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">{t('profile.email')}</p>
+                <p className="text-lg font-semibold text-card-foreground">{user.email}</p>
+              </div>
+
               <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
-          <div>
+                <div>
                   <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">{t('profile.name')}</p>
                   <Input
                     value={name}
@@ -136,11 +141,6 @@ export default function Profile() {
                 </Button>
               </div>
 
-              <div className="rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">{t('profile.email')}</p>
-                <p className="text-lg font-semibold text-card-foreground">{user.email}</p>
-          </div>
-
               <div className="rounded-xl border border-border bg-muted/30 p-4 sm:col-span-2">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">{t('profile.uid')}</p>
                 <p className="text-sm text-card-foreground break-all">{user.uid}</p>
@@ -154,7 +154,7 @@ export default function Profile() {
               <p className="text-sm text-muted-foreground">
                 {t('profile.uploadHint')}
               </p>
-        </div>
+            </div>
 
             {/* --- БЛОК ВЫБОРА ГОТОВЫХ СТИЛЕЙ --- */}
             <div className="mb-4">
@@ -176,23 +176,23 @@ export default function Profile() {
                       )}
                     >
                       {/* Используем SkeletonImage и тут для плавности */}
-                      <SkeletonImage 
-                        src={src} 
-                        alt={`Default avatar ${index + 1}`} 
-                        className="h-full w-full object-cover" 
+                      <SkeletonImage
+                        src={src}
+                        alt={`Default avatar ${index + 1}`}
+                        className="h-full w-full object-cover"
                         fallback={<div className="h-full w-full bg-muted" />}
                       />
                       {isSelected && (
-                         <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                            <Check className="w-5 h-5 text-white drop-shadow-md" />
-                         </div>
+                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                          <Check className="w-5 h-5 text-white drop-shadow-md" />
+                        </div>
                       )}
                     </button>
                   );
                 })}
               </div>
             </div>
-            
+
             {/* Разделитель */}
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
@@ -218,15 +218,15 @@ export default function Profile() {
                 }
               }}
             >
-          <input
-            type="file"
+              <input
+                type="file"
                 accept="image/png,image/jpeg"
-            onChange={handleFileChange}
-            disabled={uploading}
+                onChange={handleFileChange}
+                disabled={uploading}
                 className="sr-only"
-            ref={fileInputRef}
+                ref={fileInputRef}
                 aria-label={t('profile.updatePhoto')}
-          />
+              />
               <div className="flex items-start gap-3">
                 <div className="flex-1 space-y-2">
                   <p className="text-sm text-card-foreground">{t('profile.selectFile')}</p>
@@ -237,7 +237,7 @@ export default function Profile() {
                   {uploading ? t('profile.saving') : t('profile.choosePhoto')}
                 </div>
               </div>
-        </div>
+            </div>
 
             <div className="border-t border-border pt-4 mt-4 space-y-3">
               <div className="flex items-center gap-2">
