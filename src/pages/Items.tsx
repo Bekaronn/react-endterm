@@ -233,6 +233,15 @@ export default function Items() {
     updateParams({ sort: value, page: '1' });
   }
 
+  const getCompanyInitials = (name?: string | null) => {
+    if (!name) return '??';
+    const cleaned = name.trim();
+    if (!cleaned) return '??';
+    const words = cleaned.split(/\s+/).filter(Boolean);
+    const initials = words.map((word) => word[0]?.toUpperCase() ?? '').join('');
+    return initials.slice(0, 2) || '??';
+  };
+
   return (
     <main className="min-h-screen bg-background py-8 px-4">
       <div className="max-w-7xl mx-auto">
@@ -433,6 +442,7 @@ export default function Items() {
                     const salaryLabel = job.salary || t('items.notSpecified');
                     const tagsLabel =
                       job.tags && job.tags.length > 0 ? job.tags.slice(0, 3).join(' • ') : t('items.notSpecified');
+                    const companyInitials = getCompanyInitials(job.company_name);
                     return (
                       <Link key={job.slug} to={`/jobs/${job.slug}`} className="block">
                         <div className="bg-card border border-border rounded-lg p-6 hover:shadow-lg hover:border-primary transition cursor-pointer">
@@ -446,7 +456,9 @@ export default function Items() {
                                     className="w-full h-full object-cover"
                                   />
                                 ) : (
-                                  <span aria-hidden>🧭</span>
+                                  <span aria-hidden className="text-base font-semibold text-card-foreground">
+                                    {companyInitials}
+                                  </span>
                                 )}
                               </div>
                               <div className="flex-1">

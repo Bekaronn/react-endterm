@@ -4,6 +4,8 @@ export type ProfileData = {
   displayName: string | null;
   email: string | null;
   photoURL: string | null;
+  resumeURL?: string | null;
+  resumeName?: string | null;
   uid: string | null;
 };
 

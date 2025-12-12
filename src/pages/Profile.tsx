@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Navigate } from 'react-router-dom';
 import { updateProfile } from 'firebase/auth';
 import { useDispatch } from 'react-redux';
-import { Camera, LogOut, ShieldCheck, User2, Check } from 'lucide-react';
+import { Camera, LogOut, ShieldCheck, User2, Check, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '@/components/ui/avatar';
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Spinner from '../components/Spinner';
 import { useAuth } from '../context/AuthProvider';
-import { getUserProfile, saveUserProfile, uploadAvatar } from '../services/profileService';
+import { getUserProfile, saveUserProfile, uploadAvatar, uploadResume } from '../services/profileService';
 import { setProfile } from '../features/profile/profileSlice';
 import type { AppDispatch } from '../store';
 import { SkeletonImage } from '../components/SkeletonImage';
@@ -27,25 +27,37 @@ export default function Profile() {
   const dispatch = useDispatch<AppDispatch>();
   const { t } = useTranslation();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [resumeUrl, setResumeUrl] = useState<string | null>(null);
+  const [resumeName, setResumeName] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [resumeStatus, setResumeStatus] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [resumeUploading, setResumeUploading] = useState(false);
   const [name, setName] = useState('');
   const [savingName, setSavingName] = useState(false);
   const workerRef = useRef<Worker | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const resumeInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!user) {
       dispatch(setProfile(null));
+      setResumeUrl(null);
+      setResumeName(null);
+      setResumeStatus(null);
       return;
     }
     setPhotoUrl(user.photoURL ?? null);
+    setResumeUrl(null);
+    setResumeName(null);
     setName(user.displayName ?? '');
     dispatch(
       setProfile({
         displayName: user.displayName ?? null,
         email: user.email ?? null,
         photoURL: user.photoURL ?? null,
+        resumeURL: null,
+        resumeName: null,
         uid: user.uid,
       }),
     );
@@ -58,11 +70,19 @@ export default function Profile() {
         if (profile.displayName) {
           setName(profile.displayName);
         }
+        if (profile.resumeURL) {
+          setResumeUrl(profile.resumeURL);
+        }
+        if (profile.resumeName) {
+          setResumeName(profile.resumeName);
+        }
         dispatch(
           setProfile({
             displayName: profile.displayName ?? user.displayName ?? null,
             email: user.email ?? null,
             photoURL: profile.photoURL ?? user.photoURL ?? null,
+            resumeURL: profile.resumeURL ?? null,
+            resumeName: profile.resumeName ?? null,
             uid: user.uid,
           }),
         );
@@ -143,6 +163,8 @@ export default function Profile() {
           displayName: user.displayName ?? null,
           email: user.email ?? null,
           photoURL: src,
+          resumeURL: resumeUrl ?? null,
+          resumeName: resumeName ?? null,
           uid: user.uid,
         }),
       );
@@ -192,6 +214,8 @@ export default function Profile() {
           displayName: user.displayName ?? null,
           email: user.email ?? null,
           photoURL: downloadUrl ?? null,
+          resumeURL: resumeUrl ?? null,
+          resumeName: resumeName ?? null,
           uid: user.uid,
         }),
       );
@@ -202,6 +226,59 @@ export default function Profile() {
       toast.error(message);
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleResumeChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    const allowedTypes = ['application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+      const message = t('profile.invalidResumeType', { defaultValue: 'Please upload a PDF.' });
+      setResumeStatus(message);
+      toast.error(message);
+      e.target.value = '';
+      return;
+    }
+
+    const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+    if (file.size > MAX_SIZE) {
+      const message = t('profile.maxResumeSize', { defaultValue: 'Maximum size 5 MB.' });
+      setResumeStatus(message);
+      toast.error(message);
+      e.target.value = '';
+      return;
+    }
+
+    setResumeUploading(true);
+    setResumeStatus(t('profile.statusResumeUpload', { defaultValue: 'Uploading resume…' }));
+    try {
+      const { url, name: savedName } = await uploadResume(user.uid, file);
+      setResumeUrl(url);
+      setResumeName(savedName);
+      setResumeStatus(t('profile.statusResumeSaved', { defaultValue: 'Resume saved.' }));
+      dispatch(
+        setProfile({
+          displayName: user.displayName ?? null,
+          email: user.email ?? null,
+          photoURL: photoUrl ?? user.photoURL ?? null,
+          resumeURL: url,
+          resumeName: savedName,
+          uid: user.uid,
+        }),
+      );
+      toast.success(t('profile.statusResumeSaved', { defaultValue: 'Resume saved.' }));
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : t('profile.resumeUploadFail', { defaultValue: 'Failed to upload resume.' });
+      setResumeStatus(message);
+      toast.error(message);
+    } finally {
+      setResumeUploading(false);
+      e.target.value = '';
     }
   }
 
@@ -228,6 +305,8 @@ export default function Profile() {
           displayName: trimmed,
           email: user.email ?? null,
           photoURL: photoUrl ?? user.photoURL ?? null,
+          resumeURL: resumeUrl ?? null,
+          resumeName: resumeName ?? null,
           uid: user.uid,
         }),
       );
@@ -437,9 +516,75 @@ export default function Profile() {
               </div>
         </div>
 
-            {status && (
-              <div className="rounded-xl border border-border bg-muted/30 p-3 text-sm text-card-foreground">
-                {status}
+            <div className="border-t border-border pt-4 mt-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" />
+                <p className="text-sm font-semibold text-card-foreground">{t('profile.resumeTitle', { defaultValue: 'Resume' })}</p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {t('profile.resumeHint', { defaultValue: 'Upload your resume as PDF (max 5 MB).' })}
+              </p>
+              <div className="flex items-start justify-between gap-3 rounded-lg border border-border bg-muted/30 p-3">
+                <div className="space-y-1">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                    {t('profile.resumeCurrent', { defaultValue: 'Current resume' })}
+                  </p>
+                  {resumeUrl ? (
+                    <p className="text-sm text-card-foreground break-all">
+                      {resumeName ?? t('profile.resumeDownload', { defaultValue: 'Download' })}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {t('profile.resumeNotUploaded', { defaultValue: 'No resume uploaded yet.' })}
+                    </p>
+                  )}
+                </div>
+                {resumeUrl && (
+                  <a
+                    href={resumeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-semibold text-primary hover:underline"
+                  >
+                    {t('profile.resumeDownload', { defaultValue: 'Download' })}
+                  </a>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={handleResumeChange}
+                  disabled={resumeUploading || uploading}
+                  className="sr-only"
+                  ref={resumeInputRef}
+                  aria-label={t('profile.uploadResume', { defaultValue: 'Upload resume' })}
+                />
+                <Button
+                  onClick={() => resumeInputRef.current?.click()}
+                  disabled={resumeUploading || uploading}
+                  variant="secondary"
+                  className="gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  {resumeUploading ? t('profile.saving') : t('profile.uploadResume', { defaultValue: 'Upload resume' })}
+                </Button>
+                {resumeUrl && (
+                  <Button asChild variant="outline">
+                    <a href={resumeUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      {t('profile.resumeDownload', { defaultValue: 'Download' })}
+                    </a>
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {(status || resumeStatus) && (
+              <div className="rounded-xl border border-border bg-muted/30 p-3 text-sm text-card-foreground space-y-1">
+                {status && <p>{status}</p>}
+                {resumeStatus && <p>{resumeStatus}</p>}
               </div>
             )}
           </div>

@@ -47,6 +47,17 @@ const resources = {
         orUpload: 'Or upload a photo',
         nameUnchanged: 'Name unchanged.',
         nameUpdated: 'Name updated.',
+        resumeTitle: 'Resume',
+        resumeHint: 'Upload your resume as PDF (max 5 MB).',
+        uploadResume: 'Upload resume',
+        resumeCurrent: 'Current resume',
+        resumeNotUploaded: 'No resume uploaded yet.',
+        statusResumeUpload: 'Uploading resume…',
+        statusResumeSaved: 'Resume saved.',
+        invalidResumeType: 'Please upload a PDF.',
+        maxResumeSize: 'Maximum size 5 MB.',
+        resumeDownload: 'Download',
+        resumeUploadFail: 'Failed to upload resume.',
       },
       items: {
         title: 'Find Your Next Job',
@@ -192,6 +203,17 @@ const resources = {
         orUpload: 'Или загрузите фото',
         nameUnchanged: 'Имя без изменений.',
         nameUpdated: 'Имя обновлено.',
+        resumeTitle: 'Резюме',
+        resumeHint: 'Загрузите резюме в PDF (до 5 МБ).',
+        uploadResume: 'Загрузить резюме',
+        resumeCurrent: 'Текущее резюме',
+        resumeNotUploaded: 'Резюме ещё не загружено.',
+        statusResumeUpload: 'Загружаем резюме…',
+        statusResumeSaved: 'Резюме сохранено.',
+        invalidResumeType: 'Пожалуйста, загрузите PDF.',
+        maxResumeSize: 'Максимальный размер 5 МБ.',
+        resumeDownload: 'Скачать',
+        resumeUploadFail: 'Не удалось загрузить резюме.',
       },
       items: {
         title: 'Найдите работу',
@@ -337,6 +359,17 @@ const resources = {
         orUpload: 'Немесе фото жүктеңіз',
         nameUnchanged: 'Аты өзгеріссіз.',
         nameUpdated: 'Аты жаңартылды.',
+        resumeTitle: 'Резюме',
+        resumeHint: 'PDF резюмеңізді жүктеңіз (ең көбі 5 МБ).',
+        uploadResume: 'Резюме жүктеу',
+        resumeCurrent: 'Ағымдағы резюме',
+        resumeNotUploaded: 'Резюме әлі жүктелмеген.',
+        statusResumeUpload: 'Резюме жүктелуде…',
+        statusResumeSaved: 'Резюме сақталды.',
+        invalidResumeType: 'PDF жүктеңіз.',
+        maxResumeSize: 'Ең көбі 5 МБ.',
+        resumeDownload: 'Жүктеу',
+        resumeUploadFail: 'Резюме жүктелмеді.',
       },
       items: {
         title: 'Келесі жұмысыңды тап',
@@ -439,12 +472,41 @@ const resources = {
   },
 };
 
+const STORAGE_KEY = 'career_atlas_lang';
+const supportedLngs = ['en', 'ru', 'kz'] as const;
+type SupportedLng = (typeof supportedLngs)[number];
+
+function detectInitialLanguage(): SupportedLng {
+  if (typeof window === 'undefined') return 'en';
+
+  const saved = window.localStorage.getItem(STORAGE_KEY);
+  if (saved && supportedLngs.includes(saved as SupportedLng)) {
+    return saved as SupportedLng;
+  }
+
+  const browser = navigator.language?.slice(0, 2);
+  if (browser && supportedLngs.includes(browser as SupportedLng)) {
+    return browser as SupportedLng;
+  }
+
+  return 'en';
+}
+
+const initialLng = detectInitialLanguage();
+
 i18n.use(initReactI18next).init({
   resources,
-  lng: 'en',
+  lng: initialLng,
   fallbackLng: 'en',
   interpolation: { escapeValue: false },
   returnNull: false,
+});
+
+i18n.on('languageChanged', (lng) => {
+  if (typeof window === 'undefined') return;
+  if (supportedLngs.includes(lng as SupportedLng)) {
+    window.localStorage.setItem(STORAGE_KEY, lng);
+  }
 });
 
 export default i18n;

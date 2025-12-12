@@ -17,7 +17,7 @@ export default function ItemDetails() {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const { selectedJob: job, loadingJob, errorJob } = useSelector((state: RootState) => state.jobs);
   const { jobIds: favoriteIds } = useSelector((state: RootState) => state.favorites);
@@ -49,6 +49,20 @@ export default function ItemDetails() {
     }
   };
 
+  const formatDateTime = (value: unknown) => {
+    if (!value) return null;
+    const date = new Date(value as string);
+    if (Number.isNaN(date.getTime())) return null;
+    try {
+      return new Intl.DateTimeFormat(i18n.language || 'en', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }).format(date);
+    } catch {
+      return date.toLocaleString();
+    }
+  };
+
   const levelLabel = useMemo(() => {
     const match = job?.tags?.find((tag) =>
       ['junior', 'mid', 'senior'].includes(tag.toLowerCase()),
@@ -58,14 +72,14 @@ export default function ItemDetails() {
 
   const typeLabel = job?.job_types?.length ? job.job_types.join(', ') : t('item.notSpecified');
   const salaryLabel = job?.salary && job.salary.trim() !== '' ? job.salary : t('item.notSpecified');
-  const postedLabel =
-    job?.updated_at && typeof job.updated_at === 'string'
-      ? job.updated_at
-      : undefined;
-  const createdLabel =
-    job?.created_at && typeof job.created_at === 'string'
-      ? job.created_at
-      : undefined;
+  const postedLabel = useMemo(
+    () => formatDateTime(job?.updated_at),
+    [job?.updated_at, i18n.language],
+  );
+  const createdLabel = useMemo(
+    () => formatDateTime(job?.created_at),
+    [job?.created_at, i18n.language],
+  );
   const remoteLabel =
     typeof job?.remote === 'boolean'
       ? (job.remote ? t('item.remoteTrue') : t('item.remoteFalse'))
@@ -284,15 +298,6 @@ export default function ItemDetails() {
               </div>
             </div>
 
-            <div className="bg-card border border-border rounded-lg p-6">
-              <h3 className="font-bold text-card-foreground mb-4">About {job.company_name}</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                {job.company_name} is hiring talented professionals to build world-class products.
-              </p>
-              <Button variant="outline" className="w-full bg-transparent" disabled>
-                View all jobs at {job.company_name}
-              </Button>
-            </div>
           </div>
         </div>
       </div>
