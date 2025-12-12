@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Мердж favorites при логине
       if (currentUser) {
         const result = await dispatch(mergeFavoritesThunk(currentUser.uid));
-        if (result.type === 'favorites/merge/fulfilled' && result.payload.merged) {
+        if (mergeFavoritesThunk.fulfilled.match(result) && result.payload.merged) {
           // Сообщение будет показано через Redux state
         }
         // Загружаем favorites после мерджа

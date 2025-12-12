@@ -9,8 +9,10 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Profile from './pages/Profile';
 import Bookmarks from './pages/Bookmarks';
+import Offline from './pages/Offline';
 import NavBar from './components/NavBar';
 import Footer from './components/Footer';
+import OfflineBanner from './components/OfflineBanner';
 import './App.css';
 import { AuthProvider } from './context/AuthProvider';
 import { ThemeProvider } from "@/components/theme-provider"
@@ -32,6 +34,7 @@ function AppContent() {
   return (
     <>
       <NavBar />
+      <OfflineBanner />
       <Routes>
         <Route index element={<Home />} />
         <Route path="jobs" element={<Items />} />
@@ -40,6 +43,7 @@ function AppContent() {
         <Route path="signup" element={<Signup />} />
         <Route path="profile" element={<Profile />} />
         <Route path="bookmarks" element={<Bookmarks />} />
+        <Route path="offline" element={<Offline />} />
       </Routes>
       <Footer />
       <Toaster position="top-center" richColors />

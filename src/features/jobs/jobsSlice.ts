@@ -13,6 +13,7 @@ interface JobsState {
   errorList: string | null;
   errorJob: string | null;
   query: string;
+  currentQueryKey: string | null;
 }
 
 const initialState: JobsState = {
@@ -24,6 +25,7 @@ const initialState: JobsState = {
   errorList: null,
   errorJob: null,
   query: '',
+  currentQueryKey: null,
 };
 
 // Параметры для запроса вакансий
@@ -36,6 +38,11 @@ interface FetchJobsParams {
   remoteFilter: 'All' | 'true' | 'false';
   tagFilter: string;
   sortBy: 'newest' | 'oldest' | 'company' | 'title';
+}
+
+function getQueryKey(params: FetchJobsParams) {
+  // Строковый ключ для distinct + switchLatest
+  return JSON.stringify(params);
 }
 
 export const fetchJobsThunk = createAsyncThunk<
@@ -88,12 +95,18 @@ const jobsSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // --- Fetch Jobs ---
-      .addCase(fetchJobsThunk.pending, (state) => {
+      .addCase(fetchJobsThunk.pending, (state, action) => {
         state.loadingList = true;
         state.errorList = null;
+        state.currentQueryKey = getQueryKey(action.meta.arg);
         // Не очищаем list здесь, чтобы избежать мигания контента при переключении страниц
       })
       .addCase(fetchJobsThunk.fulfilled, (state, action) => {
+        const key = getQueryKey(action.meta.arg);
+        if (state.currentQueryKey && key !== state.currentQueryKey) {
+          // Старая гонка запросов — игнорируем
+          return;
+        }
         state.loadingList = false;
         // Защита: если jobs придет undefined, используем пустой массив
         state.list = action.payload.jobs ?? [];
@@ -101,6 +114,11 @@ const jobsSlice = createSlice({
         state.total = action.payload.total ?? 0;
       })
       .addCase(fetchJobsThunk.rejected, (state, action) => {
+        const key = getQueryKey(action.meta.arg);
+        if (state.currentQueryKey && key !== state.currentQueryKey) {
+          // Старая гонка запросов — игнорируем
+          return;
+        }
         state.loadingList = false;
         state.errorList = action.payload ?? 'Failed to fetch jobs';
         // При ошибке можно обнулить список или оставить старый (на ваше усмотрение)

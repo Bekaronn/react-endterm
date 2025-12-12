@@ -1,20 +1,13 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Navigate } from 'react-router-dom';
-import { updateProfile } from 'firebase/auth';
-import { useDispatch } from 'react-redux';
 import { Camera, LogOut, ShieldCheck, User2, Check, FileText } from 'lucide-react';
-import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Spinner from '../components/Spinner';
-import { useAuth } from '../context/AuthProvider';
-import { getUserProfile, saveUserProfile, uploadAvatar, uploadResume } from '../services/profileService';
-import { setProfile } from '../features/profile/profileSlice';
-import type { AppDispatch } from '../store';
 import { SkeletonImage } from '../components/SkeletonImage';
 import { cn } from '@/lib/utils';
+import useProfileInfo from '../hooks/useProfileInfo';
 
 const DEFAULT_AVATARS = [
   '/avatars/default-1.jpg',
@@ -23,303 +16,17 @@ const DEFAULT_AVATARS = [
 ];
 
 export default function Profile() {
-  const { user, loading, logout } = useAuth();
-  const dispatch = useDispatch<AppDispatch>();
   const { t } = useTranslation();
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [resumeUrl, setResumeUrl] = useState<string | null>(null);
-  const [resumeName, setResumeName] = useState<string | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
-  const [resumeStatus, setResumeStatus] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [resumeUploading, setResumeUploading] = useState(false);
-  const [name, setName] = useState('');
-  const [savingName, setSavingName] = useState(false);
-  const workerRef = useRef<Worker | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const resumeInputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    if (!user) {
-      dispatch(setProfile(null));
-      setResumeUrl(null);
-      setResumeName(null);
-      setResumeStatus(null);
-      return;
-    }
-    setPhotoUrl(user.photoURL ?? null);
-    setResumeUrl(null);
-    setResumeName(null);
-    setName(user.displayName ?? '');
-    dispatch(
-      setProfile({
-        displayName: user.displayName ?? null,
-        email: user.email ?? null,
-        photoURL: user.photoURL ?? null,
-        resumeURL: null,
-        resumeName: null,
-        uid: user.uid,
-      }),
-    );
-    void (async () => {
-      const profile = await getUserProfile(user.uid);
-      if (profile) {
-        if (profile.photoURL) {
-        setPhotoUrl(profile.photoURL);
-        }
-        if (profile.displayName) {
-          setName(profile.displayName);
-        }
-        if (profile.resumeURL) {
-          setResumeUrl(profile.resumeURL);
-        }
-        if (profile.resumeName) {
-          setResumeName(profile.resumeName);
-        }
-        dispatch(
-          setProfile({
-            displayName: profile.displayName ?? user.displayName ?? null,
-            email: user.email ?? null,
-            photoURL: profile.photoURL ?? user.photoURL ?? null,
-            resumeURL: profile.resumeURL ?? null,
-            resumeName: profile.resumeName ?? null,
-            uid: user.uid,
-          }),
-        );
-      }
-    })();
-    return () => {
-      workerRef.current?.terminate();
-      workerRef.current = null;
-    };
-  }, [user]);
-
-  function getWorker() {
-    if (workerRef.current) return workerRef.current;
-    const worker = new Worker(new URL('../workers/imageCompressor.ts', import.meta.url), {
-      type: 'module',
-    });
-    workerRef.current = worker;
-    return worker;
-  }
-
-  async function compressImage(file: File) {
-    if (!('OffscreenCanvas' in window)) return file;
-    const worker = getWorker();
-    const buffer = await file.arrayBuffer();
-    const payload = {
-      buffer,
-      type: 'image/jpeg',
-      quality: 0.72,
-      maxSide: 1024,
-    };
-
-    const compressed = await new Promise<Blob | null>((resolve) => {
-      const onMessage = (event: MessageEvent) => {
-        const { success, buffer: compressedBuffer, type, error } = event.data as {
-          success: boolean;
-          buffer?: ArrayBuffer;
-          type?: string;
-          error?: string;
-        };
-        worker.removeEventListener('message', onMessage);
-        if (!success || !compressedBuffer || !type) {
-          setStatus(error ?? 'Compression failed, uploading original file.');
-          resolve(null);
-          return;
-        }
-        resolve(new Blob([compressedBuffer], { type }));
-      };
-      worker.addEventListener('message', onMessage);
-      worker.postMessage(payload, [buffer]);
-    });
-
-    return compressed ?? file;
-  }
-
-  // --- НОВАЯ ФУНКЦИЯ ДЛЯ ВЫБОРА ГОТОВЫХ АВАТАРОВ ---
-  async function handleSelectDefault(src: string) {
-    if (!user || uploading) return;
-    
-    // Если этот аватар уже стоит, не тратим ресурсы
-    if (photoUrl === src) return;
-
-    setUploading(true);
-    setStatus(t('profile.statusApplyStyle', { defaultValue: 'Applying style…' }));
-
-    try {
-      // 1. Обновляем Firebase Auth
-      await updateProfile(user, { photoURL: src });
-      
-      // 2. Обновляем базу данных Firestore
-      await saveUserProfile(user.uid, { photoURL: src, displayName: user.displayName ?? undefined });
-      
-      // 3. Обновляем локальный стейт
-      setPhotoUrl(src);
-      
-      // 4. Обновляем Redux
-      dispatch(
-        setProfile({
-          displayName: user.displayName ?? null,
-          email: user.email ?? null,
-          photoURL: src,
-          resumeURL: resumeUrl ?? null,
-          resumeName: resumeName ?? null,
-          uid: user.uid,
-        }),
-      );
-
-      setStatus(t('profile.statusPhotoUpdated', { defaultValue: 'Photo updated.' }));
-      toast.success(t('profile.styleChanged', { defaultValue: 'Profile style updated' }));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : t('profile.uploadFail', { defaultValue: 'Failed to change avatar' });
-      setStatus(message);
-      toast.error(message);
-    } finally {
-      setUploading(false);
-    }
-  }
-  // ---------------------------------------------------
-
-  async function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-    if (!allowedTypes.includes(file.type)) {
-      setStatus(t('profile.invalidFileType', { defaultValue: 'Please select an image (jpg or png).' }));
-      toast.error(t('profile.invalidFileType', { defaultValue: 'Please select an image (jpg or png).' }));
-      return;
-    }
-
-    const MAX_SIZE = 2 * 1024 * 1024; // 2 MB
-    if (file.size > MAX_SIZE) {
-      setStatus(t('profile.maxSize'));
-      toast.error(t('profile.maxSize'));
-      return;
-    }
-
-    setUploading(true);
-    setStatus(t('profile.statusCompress', { defaultValue: 'Сжимаем изображение…' }));
-    try {
-      const blob = await compressImage(file);
-      setStatus(t('profile.statusUpload', { defaultValue: 'Загружаем в облако…' }));
-      const downloadUrl = await uploadAvatar(user.uid, blob);
-      setStatus(t('profile.statusSaveProfile', { defaultValue: 'Сохраняем профиль…' }));
-      await saveUserProfile(user.uid, { photoURL: downloadUrl, displayName: user.displayName ?? undefined });
-      await updateProfile(user, { photoURL: downloadUrl });
-      setPhotoUrl(downloadUrl);
-      setStatus(t('profile.statusPhotoUpdated', { defaultValue: 'Фото обновлено.' }));
-      dispatch(
-        setProfile({
-          displayName: user.displayName ?? null,
-          email: user.email ?? null,
-          photoURL: downloadUrl ?? null,
-          resumeURL: resumeUrl ?? null,
-          resumeName: resumeName ?? null,
-          uid: user.uid,
-        }),
-      );
-      toast.success(t('profile.statusPhotoUpdated', { defaultValue: 'Фото обновлено.' }));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Не удалось загрузить фото';
-      setStatus(message);
-      toast.error(message);
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function handleResumeChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-
-    const allowedTypes = ['application/pdf'];
-    if (!allowedTypes.includes(file.type)) {
-      const message = t('profile.invalidResumeType', { defaultValue: 'Please upload a PDF.' });
-      setResumeStatus(message);
-      toast.error(message);
-      e.target.value = '';
-      return;
-    }
-
-    const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
-    if (file.size > MAX_SIZE) {
-      const message = t('profile.maxResumeSize', { defaultValue: 'Maximum size 5 MB.' });
-      setResumeStatus(message);
-      toast.error(message);
-      e.target.value = '';
-      return;
-    }
-
-    setResumeUploading(true);
-    setResumeStatus(t('profile.statusResumeUpload', { defaultValue: 'Uploading resume…' }));
-    try {
-      const { url, name: savedName } = await uploadResume(user.uid, file);
-      setResumeUrl(url);
-      setResumeName(savedName);
-      setResumeStatus(t('profile.statusResumeSaved', { defaultValue: 'Resume saved.' }));
-      dispatch(
-        setProfile({
-          displayName: user.displayName ?? null,
-          email: user.email ?? null,
-          photoURL: photoUrl ?? user.photoURL ?? null,
-          resumeURL: url,
-          resumeName: savedName,
-          uid: user.uid,
-        }),
-      );
-      toast.success(t('profile.statusResumeSaved', { defaultValue: 'Resume saved.' }));
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : t('profile.resumeUploadFail', { defaultValue: 'Failed to upload resume.' });
-      setResumeStatus(message);
-      toast.error(message);
-    } finally {
-      setResumeUploading(false);
-      e.target.value = '';
-    }
-  }
-
-  async function handleSaveName() {
-    if (!user) return;
-    const trimmed = name.trim();
-    if (!trimmed) {
-      setStatus(t('profile.nameEmpty', { defaultValue: 'Имя не может быть пустым.' }));
-      toast.error(t('profile.nameEmpty', { defaultValue: 'Имя не может быть пустым.' }));
-      return;
-    }
-    if (trimmed === user.displayName) {
-      setStatus(t('profile.nameUnchanged', { defaultValue: 'Имя без изменений.' }));
-      return;
-    }
-
-    setSavingName(true);
-    setStatus(t('profile.saving'));
-    try {
-      await updateProfile(user, { displayName: trimmed });
-      await saveUserProfile(user.uid, { displayName: trimmed });
-      dispatch(
-        setProfile({
-          displayName: trimmed,
-          email: user.email ?? null,
-          photoURL: photoUrl ?? user.photoURL ?? null,
-          resumeURL: resumeUrl ?? null,
-          resumeName: resumeName ?? null,
-          uid: user.uid,
-        }),
-      );
-      setStatus(t('profile.nameUpdated', { defaultValue: 'Имя обновлено.' }));
-      toast.success(t('profile.nameUpdated', { defaultValue: 'Имя обновлено.' }));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Не удалось обновить имя';
-      setStatus(message);
-      toast.error(message);
-    } finally {
-      setSavingName(false);
-    }
-  }
+  const {
+    user,
+    loading,
+    logout,
+    state: { photoUrl, resumeUrl, resumeName, status, resumeStatus, uploading, resumeUploading, name, savingName },
+    setName,
+    refs: { fileInputRef, resumeInputRef },
+    handlers: { handleSelectDefault, handleFileChange, handleResumeChange, handleSaveName },
+  } = useProfileInfo();
 
   if (loading) return <Spinner />;
 
@@ -570,14 +277,6 @@ export default function Profile() {
                   <FileText className="h-4 w-4" />
                   {resumeUploading ? t('profile.saving') : t('profile.uploadResume', { defaultValue: 'Upload resume' })}
                 </Button>
-                {resumeUrl && (
-                  <Button asChild variant="outline">
-                    <a href={resumeUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-                      <FileText className="h-4 w-4" />
-                      {t('profile.resumeDownload', { defaultValue: 'Download' })}
-                    </a>
-                  </Button>
-                )}
               </div>
             </div>
 

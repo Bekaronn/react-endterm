@@ -1,3 +1,5 @@
+/// <reference lib="webworker" />
+
 type CompressRequest = {
   buffer: ArrayBuffer;
   type: string;

@@ -6,25 +6,19 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import Spinner from '../components/Spinner';
 import ErrorBox from '../components/ErrorBox';
-import { useAuth } from '../context/AuthProvider';
 import { fetchJobBySlugThunk } from '../features/jobs/jobsSlice';
-import { addFavoriteThunk, removeFavoriteThunk, loadFavoritesThunk } from '../features/favorites/favoritesSlice';
 import type { AppDispatch, RootState } from '../store';
 import { useTranslation } from 'react-i18next';
+import { useFavoriteJobs } from '../hooks/useFavoriteJobs';
 
 export default function ItemDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
-  const { user } = useAuth();
   const { t, i18n } = useTranslation();
+  const { favoriteIds, toggleFavorite } = useFavoriteJobs();
 
   const { selectedJob: job, loadingJob, errorJob } = useSelector((state: RootState) => state.jobs);
-  const { jobIds: favoriteIds } = useSelector((state: RootState) => state.favorites);
-
-  useEffect(() => {
-    dispatch(loadFavoritesThunk({ uid: user?.uid ?? null }));
-  }, [dispatch, user?.uid]);
 
   useEffect(() => {
     if (id) {
@@ -37,15 +31,16 @@ export default function ItemDetails() {
   const handleToggleFavorite = async () => {
     if (!job) return;
     try {
-      if (isFavorite) {
-        await dispatch(removeFavoriteThunk({ uid: user?.uid ?? null, jobId: job.slug })).unwrap();
-        toast.success(t('item.toast.remove'));
-      } else {
-        await dispatch(addFavoriteThunk({ uid: user?.uid ?? null, jobId: job.slug })).unwrap();
-        toast.success(t('item.toast.add'));
-      }
+      await toggleFavorite(job.slug, {
+        messages: {
+          add: t('item.toast.add'),
+          remove: t('item.toast.remove'),
+          addFail: t('item.toast.addFail'),
+          removeFail: t('item.toast.removeFail'),
+        },
+      });
     } catch (err) {
-      toast.error(isFavorite ? t('item.toast.removeFail') : t('item.toast.addFail'));
+      // errors already surfaced via hook toast
     }
   };
 

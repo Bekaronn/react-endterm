@@ -1,10 +1,11 @@
-const SHELL_CACHE = 'shell-v1';
+const SHELL_CACHE = 'shell-v2';
 const API_CACHE = 'api-cache';
 
 // App Shell файлы для кеширования при установке
 const APP_SHELL = [
   '/',
   '/index.html',
+  '/offline',
   '/manifest.json',
   '/android-chrome-192x192.png',
   '/android-chrome-512x512.png',
@@ -19,17 +20,23 @@ self.addEventListener("install", event => {
       return cache.addAll(APP_SHELL);
     })
   );
+  // Activate the new worker immediately after install
+  void self.skipWaiting();
 });
 
 // Активация - удаляем старые кеши и берем управление
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(cacheNames => {
-      Promise.all(
-        keys.filter(key => key !== SHELL_CACHE).map(key => caches.delete(key))
-        )       
+      return Promise.all(
+        cacheNames
+          .filter(name => name !== SHELL_CACHE && name !== API_CACHE)
+          .map(name => caches.delete(name))
+      );
     })
   );
+  // Take control immediately so the offline banner/page gets the current worker
+  void self.clients.claim();
 });
 
 // Обработка запросов
@@ -121,49 +128,19 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // OpenLibrary API - кешируем публичные запросы
-  if (url.hostname === 'openlibrary.org' &&
-    (url.pathname.startsWith('/search.json') ||
-      url.pathname.startsWith('/works/') ||
-      url.pathname.startsWith('/authors/'))) {
-
+  // API 88.218.170.214:8000 - network-first с кешем для GET
+  if (url.origin === 'http://88.218.170.214:8000') {
     event.respondWith(
       caches.open(API_CACHE).then(cache => {
         return cache.match(request).then(cached => {
-          // Для поиска - stale-while-revalidate
-          if (url.pathname.startsWith('/search.json')) {
-            // Обновляем кеш в фоне
-            fetch(request).then(response => {
-              if (response.ok) {
-                cache.put(request, response.clone());
-              }
-            }).catch(() => { });
-
-            // Возвращаем кеш сразу, если есть
-            if (cached) {
-              return cached;
-            }
-
-            // Если кеша нет - делаем запрос
-            return fetch(request).then(response => {
+          return fetch(request)
+            .then(response => {
               if (response.ok) {
                 cache.put(request, response.clone());
               }
               return response;
-            }).catch(() => {
-              return cached || Promise.reject(new Error('Offline'));
-            });
-          } else {
-            // Для деталей - network-first
-            return fetch(request).then(response => {
-              if (response.ok) {
-                cache.put(request, response.clone());
-              }
-              return response;
-            }).catch(() => {
-              return cached || Promise.reject(new Error('Offline'));
-            });
-          }
+            })
+            .catch(() => cached || Promise.reject(new Error('Offline')));
         });
       })
     );

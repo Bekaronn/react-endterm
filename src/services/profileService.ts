@@ -1,3 +1,4 @@
+import { updateProfile, type User } from 'firebase/auth';
 import {
   doc,
   getDoc,
@@ -5,6 +6,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { compressImage } from './imageCompressionService';
 
 export type UserProfile = {
   displayName?: string;
@@ -74,10 +76,7 @@ export async function uploadAvatar(uid: string, file: Blob) {
 export async function uploadResume(uid: string, file: File) {
   const API_URL = `${API_BASE}/upload/resume`;
 
-  const normalizedFile =
-    file instanceof File
-      ? file
-      : new File([file], file.name || "resume.pdf", { type: file.type || "application/pdf" });
+  const normalizedFile = file;
 
   const formData = new FormData();
   formData.append("file", normalizedFile);
@@ -102,6 +101,30 @@ export async function uploadResume(uid: string, file: File) {
 
   await saveUserProfile(uid, { resumeURL: url, resumeName: normalizedFile.name });
   return { url, name: normalizedFile.name };
+}
+
+export async function applyDefaultAvatar(user: User, src: string) {
+  await updateProfile(user, { photoURL: src });
+  await saveUserProfile(user.uid, { photoURL: src, displayName: user.displayName ?? undefined });
+  return src;
+}
+
+export async function uploadUserAvatar(user: User, file: File) {
+  const blob = await compressImage(file);
+  const downloadUrl = await uploadAvatar(user.uid, blob);
+  await saveUserProfile(user.uid, { photoURL: downloadUrl, displayName: user.displayName ?? undefined });
+  await updateProfile(user, { photoURL: downloadUrl });
+  return downloadUrl;
+}
+
+export async function uploadUserResume(user: User, file: File) {
+  return uploadResume(user.uid, file);
+}
+
+export async function updateDisplayName(user: User, displayName: string) {
+  await updateProfile(user, { displayName });
+  await saveUserProfile(user.uid, { displayName });
+  return displayName;
 }
 
 

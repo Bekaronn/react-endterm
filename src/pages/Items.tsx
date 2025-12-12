@@ -1,28 +1,25 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { Search, Filter, MapPin, DollarSign, Briefcase, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
 
 // Убедитесь, что пути к компонентам верны для вашего проекта
 import Spinner from '../components/Spinner';
 import ErrorBox from '../components/ErrorBox';
-import { useAuth } from '../context/AuthProvider';
 import type { RootState, AppDispatch } from '../store';
 import { fetchJobsThunk, setQuery } from '../features/jobs/jobsSlice';
-import { addFavoriteThunk, removeFavoriteThunk, loadFavoritesThunk } from '../features/favorites/favoritesSlice';
 import { JOB_TYPE_OPTIONS, TAG_OPTIONS, SORT_OPTIONS, JOBS_PAGE_SIZE } from '../constants/jobFilters';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useTranslation } from 'react-i18next';
+import { useFavoriteJobs } from '../hooks/useFavoriteJobs';
 
 export default function Items() {
   const dispatch = useDispatch<AppDispatch>();
-  const { user } = useAuth();
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { list, loadingList, errorList, total } = useSelector((state: RootState) => state.jobs);
-  const { jobIds: favoriteIds = [] } = useSelector((state: RootState) => state.favorites);
+  const { favoriteIds, toggleFavorite } = useFavoriteJobs();
 
   const [showFilters, setShowFilters] = useState(false);
 
@@ -52,6 +49,7 @@ export default function Items() {
 
   const debouncedSearch = useDebouncedValue(searchInput, 400);
   const PAGE_SIZE = JOBS_PAGE_SIZE;
+  const lastFetchKeyRef = useRef<string>('');
 
   // Helper to update URL params consistently
   const updateParams = (updates: Record<string, string | null | undefined>) => {
@@ -109,41 +107,42 @@ export default function Items() {
     );
   }, [debouncedSearch, dispatch, searchParams, setSearchParams]);
 
-  // Загрузка избранного
-  useEffect(() => {
-    dispatch(loadFavoritesThunk({ uid: user?.uid ?? null }));
-  }, [dispatch, user?.uid]);
-
   // Запрос вакансий
   useEffect(() => {
-    dispatch(
-      fetchJobsThunk({
-        query: debouncedSearch,
-        page: currentPage,
-        pageSize: PAGE_SIZE,
-        typeFilter: selectedType,
-        companyFilter,
-        remoteFilter: selectedRemote,
-        tagFilter: selectedTag,
-        sortBy: selectedSort,
-      }),
-    );
+    const fetchParams = {
+      query: debouncedSearch,
+      page: currentPage,
+      pageSize: PAGE_SIZE,
+      typeFilter: selectedType,
+      companyFilter,
+      remoteFilter: selectedRemote,
+      tagFilter: selectedTag,
+      sortBy: selectedSort,
+    };
+
+    // distinctUntilChanged по ключу параметров
+    const fetchKey = JSON.stringify(fetchParams);
+    if (fetchKey === lastFetchKeyRef.current) return;
+    lastFetchKeyRef.current = fetchKey;
+
+    // switchLatest: предыдущее состояние перезапишется только если ответ соответствует последнему ключу (см. jobsSlice)
+    dispatch(fetchJobsThunk(fetchParams));
   }, [dispatch, debouncedSearch, currentPage, selectedTag, selectedType, companyFilter, selectedRemote, selectedSort]);
 
   const handleToggleFavorite = async (e: React.MouseEvent, jobId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    const isFavorite = favoriteIds.includes(jobId);
     try {
-      if (isFavorite) {
-        await dispatch(removeFavoriteThunk({ uid: user?.uid ?? null, jobId })).unwrap();
-        toast.success('Removed from bookmarks');
-      } else {
-        await dispatch(addFavoriteThunk({ uid: user?.uid ?? null, jobId })).unwrap();
-        toast.success('Added to bookmarks');
-      }
+      await toggleFavorite(jobId, {
+        messages: {
+          add: 'Added to bookmarks',
+          remove: 'Removed from bookmarks',
+          addFail: t('items.toast.addFail'),
+          removeFail: t('items.toast.removeFail'),
+        },
+      });
     } catch (err) {
-      toast.error(isFavorite ? t('items.toast.removeFail') : t('items.toast.addFail'));
+      // Ошибка уже показана внутри useFavoriteJobs
     }
   };
 

@@ -1,39 +1,29 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
 import { Heart, MapPin, DollarSign, Briefcase, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
 import Spinner from '../components/Spinner';
 import ErrorBox from '../components/ErrorBox';
-import { useAuth } from '../context/AuthProvider';
-import { loadFavoritesThunk, removeFavoriteThunk } from '../features/favorites/favoritesSlice';
 import { fetchJobBySlug } from '../services/jobsService';
-import type { AppDispatch, RootState } from '../store';
 import type { Job } from '../services/jobsService';
 import { useTranslation } from 'react-i18next';
+import { useFavoriteJobs } from '../hooks/useFavoriteJobs';
 
 export default function Bookmarks() {
-  const dispatch = useDispatch<AppDispatch>();
-  const { user } = useAuth();
-  const { jobIds, loading, error } = useSelector((state: RootState) => state.favorites);
+  const { favoriteIds, loading, error, removeFavorite } = useFavoriteJobs();
   const [favoriteJobs, setFavoriteJobs] = useState<Job[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const { t } = useTranslation();
 
-  useEffect(() => {
-    dispatch(loadFavoritesThunk({ uid: user?.uid ?? null }));
-  }, [dispatch, user?.uid]);
-
   // Загружаем детали вакансий для отображения
   useEffect(() => {
-    if (jobIds.length === 0) {
+    if (favoriteIds.length === 0) {
       setFavoriteJobs([]);
       return;
     }
 
     setLoadingJobs(true);
-    Promise.all(jobIds.map((slug) => fetchJobBySlug(slug)))
+    Promise.all(favoriteIds.map((slug) => fetchJobBySlug(slug)))
       .then((jobs) => {
         setFavoriteJobs(jobs.filter((job): job is Job => job !== null));
         setLoadingJobs(false);
@@ -41,20 +31,24 @@ export default function Bookmarks() {
       .catch(() => {
         setLoadingJobs(false);
       });
-  }, [jobIds]);
+  }, [favoriteIds]);
 
   const handleRemove = async (jobId: string) => {
     try {
-      await dispatch(removeFavoriteThunk({ uid: user?.uid ?? null, jobId })).unwrap();
-      toast.success(t('bookmarks.remove'));
+      await removeFavorite(jobId, {
+        messages: {
+          remove: t('bookmarks.remove'),
+          removeFail: t('bookmarks.removeFail'),
+        },
+      });
     } catch (err) {
-      toast.error(t('bookmarks.removeFail'));
+      // errors already surfaced via hook toast
     }
   };
 
   if (loading) return <Spinner />;
   if (error) return <ErrorBox>{error}</ErrorBox>;
-  if (loadingJobs && jobIds.length > 0) return <Spinner />;
+  if (loadingJobs && favoriteIds.length > 0) return <Spinner />;
 
   return (
     <main className="min-h-screen bg-background py-8 px-4">
@@ -65,13 +59,13 @@ export default function Bookmarks() {
             <h1 className="text-4xl font-bold text-foreground">{t('bookmarks.title')}</h1>
           </div>
           <p className="text-muted-foreground">
-            {jobIds.length === 0
+            {favoriteIds.length === 0
               ? t('bookmarks.subtitleEmpty')
-              : t('bookmarks.subtitleCount', { count: jobIds.length })}
+              : t('bookmarks.subtitleCount', { count: favoriteIds.length })}
           </p>
         </div>
 
-        {jobIds.length === 0 ? (
+        {favoriteIds.length === 0 ? (
           <div className="text-center py-16">
             <Heart className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
             <p className="text-lg text-muted-foreground mb-6">{t('bookmarks.subtitleEmpty')}</p>
@@ -83,7 +77,7 @@ export default function Bookmarks() {
           </div>
         ) : (
           <div className="space-y-4">
-            {favoriteJobs.length === 0 && jobIds.length > 0 ? (
+            {favoriteJobs.length === 0 && favoriteIds.length > 0 ? (
               <div className="text-center py-12">
                 <Spinner />
                 <p className="text-muted-foreground mt-4">Loading bookmarked jobs...</p>

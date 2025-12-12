@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 const LOCAL_STORAGE_KEY = 'career_atlas_favorites';

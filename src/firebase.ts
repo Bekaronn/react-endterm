@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
@@ -16,5 +16,13 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+// Включаем офлайн-персистентность Firestore (кеш IndexedDB).
+// Если браузер/вкладки не позволяют — пишем предупреждение, не падаем.
+if (typeof window !== 'undefined') {
+  void enableIndexedDbPersistence(db).catch((err) => {
+    console.warn('Firestore offline persistence is disabled:', err);
+  });
+}
 
 export default app;
