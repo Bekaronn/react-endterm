@@ -6,9 +6,9 @@ import { Provider } from 'react-redux';
 import store from './store';
 import './i18n';
 
-// if ('serviceWorker' in navigator) {
-//   void navigator.serviceWorker.register('/service-worker.js');
-// }
+if ('serviceWorker' in navigator) {
+  void navigator.serviceWorker.register('/service-worker.js');
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
