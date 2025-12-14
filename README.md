@@ -61,11 +61,11 @@ Firebase ключи заданы в `src/firebase.ts`. Замените на с�
 - API `http://88.218.170.214:8000` — стратегия network-first с кешом для GET.
 
 ## Скриншоты
-- Главная: ![Home](./screenshots/browser_2FHKzyjvFD.png)
-- Профиль: ![Profile](./screenshots/browser_IT4PRJFASN.png)
-- Закладки: ![Bookmarks](./screenshots/browser_Jt2zWnvn9K.png)
-- Детали вакансии: ![Job details](./screenshots/browser_kdi1KCp7tZ.png)
-- Отклики: ![Applications](./screenshots/browser_qbMv1nS667.png)
+- Главная: ![Home](./screenshots/browser_qbMv1nS667.png)
+- Профиль: ![Profile](./screenshots/browser_2FHKzyjvFD.png)
+- Закладки: ![Bookmarks](./screenshots/browser_IT4PRJFASN.png)
+- Детали вакансии: ![Job details](./screenshots/browser_Jt2zWnvn9K.png)
+- Отклики: ![Applications](./screenshots/browser_kdi1KCp7tZ.png)
 - Поиск/фильтры: ![Search filters](./screenshots/browser_SOdSjQV59x.png)
 
 ## Полезно
